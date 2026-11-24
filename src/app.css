@@ -1130,3 +1130,40 @@ html:not(.proj) .dbot .dtools { order: 2; }
 .wflash .t { font-size: 1.9em; line-height: 1.25; }
 .wflash .def { min-height: 0; padding: .4em .8em; }
 .wflash .wpic .pic { height: 34vh; width: auto; max-width: 70vw; }
+
+/* 參觀路線：站點卡片＋浮動視窗 */
+.route { display: flex; align-items: center; justify-content: center; gap: .5em; margin: .6em 0; flex-wrap: nowrap; }
+.rstop { position: relative; border: 3px solid var(--line, #9bb); background: var(--card, #fff); border-radius: 18px; padding: .5em .6em .4em; width: 9.5em; display: grid; justify-items: center; gap: .2em; cursor: pointer; color: inherit; font: inherit; }
+.rstop .pic { width: 100%; height: auto; border-radius: 10px; }
+.rstop .rname { font-size: 1.15em; font-weight: 700; }
+.rno { display: inline-block; min-width: 1.6em; margin-right: .3em; border-radius: 99px; background: var(--accent); color: #fff; font-size: .8em; text-align: center; }
+.rstop .rdone { position: absolute; top: .2em; right: .4em; font-size: 1.3em; color: var(--ok, #2e8b57); display: none; }
+.rstop.seen { border-color: var(--ok, #2e8b57); }
+.rstop.seen .rdone { display: block; }
+.rarrow { font-size: 1.6em; opacity: .6; }
+.rpop { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 3vh 3vw; }
+.rpop[hidden] { display: none; }
+.rpanel { background: var(--card, #fff); color: var(--ink, #222); border-radius: 20px; width: min(60em, 94vw); max-height: 94vh; overflow: auto; padding: 1em 1.4em; box-shadow: 0 10px 40px rgba(0,0,0,.35); display: grid; gap: .6em; font-size: 1.25em; }
+.rhead { display: flex; align-items: center; gap: .8em; }
+.rhead .pic { width: 7em; height: auto; border-radius: 12px; }
+.rhead .rname { font-size: 1.6em; font-weight: 700; }
+.rrow { display: grid; grid-template-columns: 5.5em 1fr; gap: .6em; align-items: center; border-top: 1px dashed var(--line, #ccc); padding-top: .5em; }
+.rh { font-weight: 700; color: var(--accent); }
+.rfoot { display: flex; justify-content: flex-end; }
+html.proj .rpanel { background: #1f3a37; color: #eef; }
+.route { width: 100%; gap: .3em; }
+.rstop { flex: 1 1 0; width: auto; max-width: 23%; font-size: .62em; padding: .4em; }
+.rstop .pic { width: auto; max-width: 100%; height: 24vh; object-fit: contain; }
+.rstop .rname { font-size: 1.3em; }
+.rarrow { font-size: 1em; }
+.rpop { font-size: clamp(16px, 3.3vh, 30px); }
+.rpanel { font-size: 1em; width: min(46em, 94vw); padding: .8em 1.2em; gap: .45em; }
+.rhead .pic { width: 4.5em; }
+.rhead .rname { font-size: 1.35em; }
+.rhead .rno { font-size: .6em; margin-right: .5em; vertical-align: middle; }
+.rrow { grid-template-columns: 4.6em 1fr; }
+.rpanel .bank { font-size: .95em; }
+.rstop .rname { color: var(--ink, #222); }
+html.proj .rstop { background: #24413d; }
+html.proj .rstop .rname { color: #eef6f4; }
+.rrow { grid-template-columns: 5.8em 1fr; }

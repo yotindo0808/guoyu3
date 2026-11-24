@@ -314,16 +314,34 @@ function structSlides() {
 function peekBox(html, cls) { const b = el("button", { type: "button", class: "fpk " + (cls || "") }, `<span class="fpk-c">${html}</span><span class="fpk-h">按一下顯示</span>`); b.onclick = () => b.classList.toggle("open"); return b; }
 /* 三座塔表格 */
 function towerSlide() {
-  const T = L.towers; const ctx = {}; const blanks = [];
-  const tb = el("table", { class: "tower" }); const th = el("tr"); th.append(el("th", {}, ""));
-  T.cols.forEach((c, k) => th.append(el("th", {}, `${pic(T.imgs[k], c)}<div>${c}</div>`))); tb.append(th);
-  T.rows.forEach(r => { const tr = el("tr"); tr.append(el("th", {}, r.h));
-    r.cells.forEach((c, k) => { const td = el("td"); if (proj()) { const parts = String(c).split(/(\{[^}]*\})/); parts.forEach(p => { const m = p.match(/^\{(.*)\}$/); if (m) td.append(peekBox(m[1], "inl")); else if (p) td.insertAdjacentHTML("beforeend", p); }); }
-      else { const line = fillLine(bparts(c), [], ctx, `三座塔表格：${T.cols[k]}${r.h}`); blanks.push(...line.blanks); td.append(line); } tr.append(td); }); tb.append(tr); });
-  const sc = el("div", { class: "tscroll" }); sc.append(tb);
-  const s = slide("", kick("參觀路線"), sc, proj() ? null : bankBox(T.bank.map(b => ({ t: b, h: b })), ctx));
-  if (!proj()) { s.onshow = () => { ctx.slideBlanks = blanks; const b = blanks.find(x => !x.classList.contains("ok")); if (b) b.click(); }; s.reveal = () => revealBlanks(blanks); }
-  s.dataset.nofit = "1"; return s;
+  /* 參觀路線：一排站點卡片，按一下跳出浮動視窗，逐站看「看到什麼、知道什麼」 */
+  const T = L.towers; const blanks = []; const route = el("div", { class: "route", role: "list" });
+  const pops = T.cols.map((c, k) => {
+    const ctx = {}; const mine = []; const body = el("div", { class: "rbody" });
+    T.rows.forEach(r => { const row = el("div", { class: "rrow" }); row.append(el("div", { class: "rh" }, r.h)); const cell = el("div", { class: "rc" }); const v = r.cells[k];
+      if (proj()) { String(v).split(/(\{[^}]*\})/).forEach(p => { const m = p.match(/^\{(.*)\}$/); if (m) cell.append(peekBox(m[1], "inl")); else if (p) cell.insertAdjacentHTML("beforeend", p); }); }
+      else { const line = fillLine(bparts(v), [], ctx, `參觀路線：${c}${r.h}`); mine.push(...line.blanks); cell.append(line); }
+      row.append(cell); body.append(row); });
+    blanks.push(...mine);
+    const ans = T.rows.map(r => (String(r.cells[k]).match(/\{([^}]*)\}/g) || []).map(x => x.slice(1, -1))).flat();
+    const others = shuffle(T.bank.filter(b => !ans.includes(b))).slice(0, 2);
+    const close = el("button", { type: "button", class: "btn rclose", "aria-label": "關閉" }, "✕ 關閉");
+    const panel = el("div", { class: "rpanel", role: "dialog", "aria-modal": "true", "aria-label": c });
+    panel.append(el("div", { class: "rhead" }, `${pic(T.imgs[k], c)}<div class="rname"><span class="rno">第 ${k + 1} 站</span>${c}</div>`), body);
+    if (!proj()) panel.append(bankBox(shuffle([...ans, ...others]).map(b => ({ t: b, h: b })), ctx));
+    panel.append(el("div", { class: "rfoot" }, "")); panel.lastChild.append(close);
+    const wrap = el("div", { class: "rpop", hidden: "" }); wrap.append(panel);
+    const card = el("button", { type: "button", class: "rstop", role: "listitem" }, `${pic(T.imgs[k], c)}<div class="rname"><span class="rno">${k + 1}</span>${c}</div><span class="rdone" aria-hidden="true">✓</span>`);
+    const hide = () => { wrap.hidden = true; document.removeEventListener("keydown", esc); if (proj() || mine.every(b => b.classList.contains("ok"))) card.classList.add("seen"); card.focus(); };
+    const esc = e => { if (e.key === "Escape") hide(); };
+    const show = () => { wrap.hidden = false; document.addEventListener("keydown", esc); ctx.slideBlanks = mine; const b = mine.find(x => !x.classList.contains("ok")); if (b) b.click(); else close.focus(); };
+    close.onclick = hide; wrap.onclick = e => { if (e.target === wrap) hide(); }; card.onclick = show;
+    route.append(card); if (k < T.cols.length - 1) route.append(el("div", { class: "rarrow", "aria-hidden": "true" }, "➜"));
+    return wrap;
+  });
+  const s = slide("", kick("參觀路線"), el("div", { class: "hint" }, "照著作者走的順序，按一下每一站看看。"), route, ...pops);
+  s.reveal = () => { revealBlanks(blanks); route.querySelectorAll(".rstop").forEach(c => c.classList.add("seen")); };
+  return s;
 }
 
 /* ══════════ 各分頁 ══════════ */
@@ -335,7 +353,7 @@ const VIEWS = {
         { name: "背景知識", hint: "先用圖片和生活經驗想一想，再讀課文。", slides: L.bg.map(bgSlide), extra: iconLegend() },
         { name: "分段讀", hint: "畫底線的是詞語，按一下看意思；黃色底的字是本課生字。", slides: [...Array(n).keys()].map(i => paraSlide(i)) },
         { name: "課文結構", slides: structSlides() },
-        { name: "參觀路線", hint: "按一下格子，顯示答案。", slides: [towerSlide()] },
+        { name: "參觀路線", hint: "按一下每一站，看看那裡有什麼。", slides: [towerSlide()] },
         { name: "段落大意", hint: "先按空格，再按詞語。", slides: bankSlides(L.summary.map(x => x.t), L.sumBank, "段落大意", { kick: L.summary.map(x => x.label) }) },
         { name: "提問", slides: L.projq.map(projQSlide), extra: iconLegend() },
       ];
@@ -355,7 +373,7 @@ const VIEWS = {
       { name: "分段讀", hint: "按詞語可以看意思。", slides: [...Array(n).keys()].map(i => paraSlide(i)) },
       { name: "課文結構", hint: "想一想每一段在做什麼。", slides: structSlides() },
       { name: "段落大意", hint: "先按空格，再按詞語。詞庫裡有用不到的詞。", slides: bankSlides(L.summary.map(x => x.t), L.sumBank, "段落大意", { kick: L.summary.map(x => x.label) }) },
-      { name: "參觀路線", hint: "先按空格，再按詞語。", slides: [towerSlide()] },
+      { name: "參觀路線", hint: "按一下每一站，在跳出來的視窗裡填空。", slides: [towerSlide()] },
       { name: "理解與推論", hint: "用句框回答，寫完檢查一次。", slides: R },
       { name: "完成", slides: [finishSlide()] },
     ];
@@ -535,7 +553,7 @@ const VIEWS = {
     const out = [];
     L.rvs.forEach((x, i) => {
       if (x.type === "write") x.items.forEach((it, k) => { const zyi = it[2]; const show = it.slice(0, 2).map((t, j) => j === zyi ? `<span class="ui zyk">${t}</span>` : nz(t)).join("");
-        const p = produce({ label: `寫國字：${it.slice(0, 2).join("")}`, answer: it[3], check: t => t === it[3] ? { st: "ok" } : { st: "no", msg: "不是這個字" } });
+        const p = produce({ only: "write", label: `寫國字：${it.slice(0, 2).join("")}`, answer: it[3], check: t => t === it[3] ? { st: "ok" } : { st: "no", msg: "不是這個字" } });
         const s = slide("", kick(x.k), el("div", { class: "stem big-line" }, `寫出注音的國字：${show}`), p); s.reveal = p.reveal; out.push(s); });
       else if (x.type === "fix") { const p = produce({ label: `改錯字：${x.s}`, answer: x.ans, check: t => t === x.ans ? { st: "ok" } : { st: "no", msg: "再找找看" }, hint: `錯的字是「${x.wrong}」` });
         const s = slide("", kick(x.k), el("div", { class: "stem big-line" }, `句子裡有一個錯字，寫出正確的字：<br>${nz(x.s)}`), p); s.reveal = p.reveal; out.push(s); }
