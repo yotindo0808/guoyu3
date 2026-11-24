@@ -911,7 +911,7 @@ function deck(sections, o = {}) {
   const pen = penLayer(stage);
   const prog = el("div", { class: "prog only-stu" }, '<div class="pbar"><i></i></div><span></span>');
   const bot = el("div", { class: "dbot" });
-  const prev = el("button", { type: "button", class: "nav", "aria-label": "上一個" }, "‹ 上一個"), next = el("button", { type: "button", class: "nav", "aria-label": "下一個" }, "下一個 ›");
+  const prev = el("button", { type: "button", class: "nav", "aria-label": "上一個" }, "‹ 上一個"), next = el("button", { type: "button", class: "nav nnext", "aria-label": "下一個" }, "下一個 ›");
   const dots = el("div", { class: "dots" }), dtools = el("div", { class: "dtools" });
   dots.addEventListener("wheel", e => { if (dots.scrollWidth > dots.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { dots.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
   const ptools = el("div", { class: "ptools only-proj" });
@@ -1036,7 +1036,7 @@ function defBankSlides(items, o) {
       const li = el("li"); const q = qid(`${o.label}：${it.t}`);
       const b = el("button", { type: "button", class: "blank dbb", "aria-label": "空格，按一下再選詞" }, "　".repeat(Math.max(2, [...it.t].length)));
       b.dataset.ans = it.t; const r = { b, it, q, done: false }; b.onclick = () => pick(r); rows.push(r);
-      li.append(b, el("span", { class: "dbdef" }, it.def)); list.append(li);
+      const dd = el("span", { class: "dbdef" }, it.def); if (it.pic && typeof pic === "function") dd.append(el("span", { class: "dbpic" }, pic(it.pic, ""))); li.append(b, dd); list.append(li);
     });
     const chips = el("div", { class: "bank dbank", "aria-label": "詞庫" });
     bank.forEach(w => { const c = el("button", { type: "button", class: "chip" }, w.h); c.onclick = () => {

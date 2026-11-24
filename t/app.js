@@ -912,7 +912,7 @@ function deck(sections, o = {}) {
   const pen = penLayer(stage);
   const prog = el("div", { class: "prog only-stu" }, '<div class="pbar"><i></i></div><span></span>');
   const bot = el("div", { class: "dbot" });
-  const prev = el("button", { type: "button", class: "nav", "aria-label": "上一󠇡個󠇡" }, "‹ 上一󠇡個󠇡"), next = el("button", { type: "button", class: "nav", "aria-label": "下一󠇡個󠇡" }, "下一󠇡個󠇡 ›");
+  const prev = el("button", { type: "button", class: "nav", "aria-label": "上一󠇡個󠇡" }, "‹ 上一󠇡個󠇡"), next = el("button", { type: "button", class: "nav nnext", "aria-label": "下一󠇡個󠇡" }, "下一󠇡個󠇡 ›");
   const dots = el("div", { class: "dots" }), dtools = el("div", { class: "dtools" });
   dots.addEventListener("wheel", e => { if (dots.scrollWidth > dots.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { dots.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
   const ptools = el("div", { class: "ptools only-proj" });
@@ -1037,7 +1037,7 @@ function defBankSlides(items, o) {
       const li = el("li"); const q = qid(`${o.label}：${it.t}`);
       const b = el("button", { type: "button", class: "blank dbb", "aria-label": "空󠇡格，按一󠇡下再選詞" }, "　".repeat(Math.max(2, [...it.t].length)));
       b.dataset.ans = it.t; const r = { b, it, q, done: false }; b.onclick = () => pick(r); rows.push(r);
-      li.append(b, el("span", { class: "dbdef" }, it.def)); list.append(li);
+      const dd = el("span", { class: "dbdef" }, it.def); if (it.pic && typeof pic === "function") dd.append(el("span", { class: "dbpic" }, pic(it.pic, ""))); li.append(b, dd); list.append(li);
     });
     const chips = el("div", { class: "bank dbank", "aria-label": "詞庫" });
     bank.forEach(w => { const c = el("button", { type: "button", class: "chip" }, w.h); c.onclick = () => {
@@ -1650,16 +1650,15 @@ const VIEWS = {
     const multiS = L.multi.items.map((x, i) => { const stem = el("div", { class: "stem big-line" }, x.s.replace(L.multi.w, `<b class="kw">${L.multi.w}</b>`)); const r = pickRow(L.multi.senses.map((t, k) => `${"①②"[k]} ${t}`), x.ans, `「${L.multi.w}」的意思󠇢${i + 1}`, "ab wide"); const s = slide("", sayRow(stem), stem, el("div", { class: "ynrow col" }, "")); s.querySelector(".ynrow").append(r); s.reveal = r.reveal; return s; });
     const fillS = bankSlides(L.fillw.items, L.fillw.bank, "選詞填入");
     if (T === "proj") {
-      const flash = WD.map(w => { const d = el("div", { class: "flash" }); d.append(el("div", { class: "t" }, w.w), peekBox(w.def, "def"), sayBtn(() => `${w.w}。${plainText(w.def)}`, "唸詞語和意思󠇢")); return slide("", d); });
-      const kw = L.kw.map(([w, p]) => slide("", el("div", { class: "kwcard" }, `${pic(p, w)}<div class="t">${w}</div>`), sayBtn(w, "唸這個󠇡詞")));
-      return deck([{ name: "詞義", hint: "先猜猜看意思󠇢，再按一󠇡下打開。", slides: flash }, { name: "情境判斷", slides: judgeS }, { name: `「${L.multi.w}」的意思󠇢`, slides: multiS }, { name: "選詞填入", slides: fillS }, { name: "關鍵詞", hint: "看圖說出詞語。", slides: kw }]);
+      const flash = WD.map(w => { const d = el("div", { class: "flash wflash" }); d.append(el("div", { class: "t" }, w.w), peekBox(w.def, "def")); if (w.pic) d.append(el("div", { class: "wpic" }, pic(w.pic, `${w.w}的情境圖`))); d.append(sayBtn(() => `${w.w}。${plainText(w.def)}`, "唸詞語和意思󠇢")); return slide("", d); });
+      return deck([{ name: "詞義", hint: "先猜猜看意思󠇢，再按一󠇡下打開。", slides: flash }, { name: "情境判斷", slides: judgeS }, { name: `「${L.multi.w}」的意思󠇢`, slides: multiS }, { name: "選詞填入", slides: fillS }]);
     }
     if (T === "base") {
       const kwPics = L.kw.map((x, i) => { const o = shuffle(L.kw.filter(y => y !== x)).slice(0, 2); return listenSlide(x[0], [x, ...o], 0, `聽詞選圖：${x[0]}`, { html: y => pic(y[1], y[0]), cls: "lpic", hint: "聽一󠇢聽，按出對的圖。" }); });
       const sent = L.listen.map((x, i) => picSlide(x.t.replace(/\{[^}]*\}/, "（　）"), x.opts.map(w => [w, (L.kw.find(k => k[0] === w) || [])[1]]), 0, `聽句子󠇡選詞${i + 1}`, { auto: true, say: blankless(x.t) }));
       return deck([{ name: "聽詞選圖", hint: "聽詞語，選出對的圖。", slides: kwPics }, { name: "聽句子󠇡選詞", hint: "聽句子󠇡，選出空󠇡格裡的詞。", slides: sent }, { name: "完成", slides: [finishSlide()] }], { submit: true });
     }
-    const defS = defBankSlides(WD.filter(w => !/^\s*$/.test(w.def)).map(w => ({ t: w.w, h: w.w, def: w.def.replace(/^①/, "").replace(/②.*$/, "") })), { label: "詞義", per: 5 });
+    const defS = defBankSlides(WD.filter(w => !/^\s*$/.test(w.def)).map(w => ({ t: w.w, h: w.w, def: w.def.replace(/^①/, "").replace(/②.*$/, ""), pic: w.pic })), { label: "詞義", per: 3, extra: 2 });
     return deck([{ name: "詞義", hint: "看解釋，選出詞語。", slides: defS }, { name: "情境判斷", hint: "看句子󠇡，判斷詞語用得󠇡對不󠇡對。", slides: judgeS }, { name: `「${L.multi.w}」的意思󠇢`, hint: "判斷句子󠇡裡的意思󠇢是 ① 還是 ②。", slides: multiS }, { name: "選詞填入", hint: "先按空󠇡格，再按詞語。", slides: fillS }, { name: "完成", slides: [finishSlide()] }], { submit: true });
   },
 

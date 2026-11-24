@@ -1115,3 +1115,18 @@ html.proj .cslide.teach .cpic .pic, .cslide.teach .cpic .pic { width: 100%; bord
 .garden .gtitle{font-size:.9em;opacity:.85}
 .garden .gflowers{font-size:1.5em;line-height:1.4;word-break:break-all}
 #tabs .tflw{font-size:.7em;margin-left:2px;letter-spacing:-.05em}
+
+/* 「下一個」固定在右邊；學生練習時放在「交給老師」左邊 */
+.dbot .nnext { margin-left: auto; }
+.dbot .dots + .dtools:empty { display: none; }
+html:not(.proj) .dbot .nnext { order: 1; }
+html:not(.proj) .dbot .dtools { order: 2; }
+
+/* 語詞情境圖：放在解釋下方 */
+.wflash .wpic .pic { width: min(22em, 60vw); height: auto; max-height: 38vh; border-radius: 14px; }
+.dbdef .dbpic { display: block; margin-top: .2em; }
+.dbdef .dbpic .pic { height: 3.4em; width: auto; border-radius: 8px; }
+.wflash { gap: .35em; }
+.wflash .t { font-size: 1.9em; line-height: 1.25; }
+.wflash .def { min-height: 0; padding: .4em .8em; }
+.wflash .wpic .pic { height: 34vh; width: auto; max-width: 70vw; }
