@@ -733,8 +733,8 @@ async function loadConfig() {
 /* 學生平板每 15 秒看一次老師的設定：今日任務改了就自動更新（不用重新整理），老師按「暫停」就蓋住畫面 */
 let POLL = null, CFGSIG = "";
 function applyConfig(c, first) {
-  const sig = JSON.stringify([c.default, c.students, c.tasks, c.tiers, c.ttsLv]); const changed = sig !== CFGSIG; CFGSIG = sig;
-  CFG.default = c.default || CFG.default; CFG.students = c.students || {}; CFG.tasks = c.tasks || []; CFG.tiers = c.tiers || {}; CFG.ttsLv = c.ttsLv || {};
+  const sig = JSON.stringify([c.default, c.students, c.tasks, c.tiers, c.ttsLv, c.ladder]); const changed = sig !== CFGSIG; CFGSIG = sig;
+  CFG.default = c.default || CFG.default; CFG.students = c.students || {}; CFG.tasks = c.tasks || []; CFG.tiers = c.tiers || {}; CFG.ttsLv = c.ttsLv || {}; CFG.ladder = c.ladder || {};
   CFG.pause = !!(c.pause && c.pause.on); pauseVeil();
   if (first || changed) { renderTabs(); if (!proj() && page() === "lesson") { render(); if (!first) toast("老師更新了練習內容"); } }
 }
@@ -1965,16 +1965,16 @@ function tabRec(body) {
 }
 function tabRoster(body) {
   const g = curGroup(); const M = ["say", "write", "type"];
-  const c = card(`學生名單與作答方式：${g.name}`, "", "名字要和學生在網站上輸入的姓名完全一樣，設定才會套用（建議只用名字或暱稱）。「層級」決定學生看到標準層或基礎層的練習，學生畫面不會顯示層級名稱。「語音報讀」可以逐步關閉：選「題目報讀，必學字不報讀」時，題目照常報讀，橘色的必學字會跳過，讓學生自己讀；選「不報讀」就不出現喇叭按鈕。名單會加密保存，只有你看得到；儲存後也會變成這台電腦上課時的抽籤名單。");
+  const c = card(`學生名單與作答方式：${g.name}`, "", "名字要和學生在網站上輸入的姓名完全一樣，設定才會套用（建議只用名字或暱稱）。「提示起點」決定句子、閱讀推論題一開始給多少提示：1 最多（詞卡、選項），4 是自己完成；學生做不出來可以按「給我提示」往下一階，做完也可以挑戰上一階。「語音報讀」可以逐步關閉：選「題目報讀，必學字不報讀」時，題目照常報讀，橘色的必學字會跳過，讓學生自己讀；選「不報讀」就不出現喇叭按鈕。名單會加密保存，只有你看得到；儲存後也會變成這台電腦上課時的抽籤名單。");
   const msg = el("p", { class: "hint", role: "status" }, "讀取中……"); c.append(msg); body.append(c);
   (async () => {
     const conf = (await fetchConfig(g.code)) || {}; let names = [];
     if (conf.roster) { try { names = await openSealed(TD.me.key, conf.roster); } catch (e) {} }
     const def = conf.default || M;
     const keys = {}; for (const n of names) keys[n] = await nameKey(g.code, n);
-    const tb = el("table", { class: "ttable" }); tb.innerHTML = "<thead><tr><th>學生</th><th>口說</th><th>寫字</th><th>打字</th><th title=\"題目、選項旁的喇叭按鈕\">語音報讀</th><th title=\"學生畫面不會出現層級名稱\">層級</th><th></th></tr></thead>";
+    const tb = el("table", { class: "ttable" }); tb.innerHTML = "<thead><tr><th>學生</th><th>口說</th><th>寫字</th><th>打字</th><th title=\"題目、選項旁的喇叭按鈕\">語音報讀</th><th title=\"1 提示最多，4 自己完成；學生可以按「給我提示」往下一階\">提示起點</th><th></th></tr></thead>";
     const valOf = cbs => [...M.filter((mm, k) => cbs[k].checked), ...(cbs.tts.value === "none" ? ["nott"] : [])];
-    const TIERS = conf.tiers || {}, TTSL = conf.ttsLv || {};
+    const LAD = conf.ladder || {}, TTSL = conf.ttsLv || {};
     const tbody = el("tbody"); tb.append(tbody); const rows = [];
     const mkRow = (name, val, fixed) => {
       const tr = el("tr"); const td0 = el("td"); let ip = null;
@@ -1984,8 +1984,11 @@ function tabRoster(body) {
       const key = fixed ? "_default" : keys[name];
       const ts = el("select", { class: "tsel sm", "aria-label": "語音報讀" }); [["all", "全部報讀"], ["q", "題目報讀，必學字不報讀"], ["none", "不報讀"]].forEach(([v, t]) => ts.append(el("option", { value: v }, t)));
       ts.value = val.includes("nott") ? "none" : (TTSL[key] || (fixed ? "all" : TTSL._default || "all")); const td4 = el("td"); td4.append(ts); tr.append(td4); cbs.tts = ts;
-      const tl = el("select", { class: "tsel sm", "aria-label": "層級" }); [["std", "標準層"], ["base", "基礎層"]].forEach(([v, t]) => tl.append(el("option", { value: v }, t)));
-      tl.value = TIERS[key] || (fixed ? "std" : TIERS._default || "std"); const td5 = el("td"); td5.append(tl); tr.append(td5); cbs.tier = tl;
+      /* 提示起點：句子、閱讀推論各從第幾階開始（1 提示最多，4 自己完成） */
+      const LV = [["1", "1 最多提示"], ["2", "2"], ["3", "3"], ["4", "4 自己完成"]];
+      const mkL = (t, lab) => { const sl = el("select", { class: "tsel sm", "aria-label": lab, title: lab }); LV.forEach(([v, n]) => sl.append(el("option", { value: v }, n)));
+        const o = LAD[key] || (fixed ? {} : LAD._default || {}); sl.value = String(o[t] || (LAD._default || {})[t] || 2); return sl; };
+      const lj = mkL("jx", "句子提示起點"), lr = mkL("rq", "閱讀推論提示起點"); const td5 = el("td", { class: "ladtd" }); td5.append(el("span", { class: "hint" }, "句子"), lj, el("span", { class: "hint" }, "閱讀"), lr); tr.append(td5); cbs.lad = { jx: lj, rq: lr };
       const td9 = el("td"); if (!fixed) { const x = el("button", { type: "button", class: "btn", title: "刪除這一列" }, "✕"); x.onclick = () => { tr.remove(); rows.splice(rows.indexOf(r), 1); }; td9.append(x); } tr.append(td9);
       const r = { ip, cbs }; rows.push(r); return tr;
     };
@@ -1996,13 +1999,13 @@ function tabRoster(body) {
     const save = el("button", { type: "button", class: "btn solid" }, "儲存");
     save.onclick = async () => {
       const d0 = valOf(rows[0].cbs); if (!d0.filter(x => x !== "nott").length) { msg.textContent = "預設至少要勾一種作答方式。"; return; }
-      const list = [], students = {}, tiers = { _default: rows[0].cbs.tier.value }, ttsLv = { _default: rows[0].cbs.tts.value };
+      const lv = r => ({ jx: +r.cbs.lad.jx.value, rq: +r.cbs.lad.rq.value }); const list = [], students = {}, ladder = { _default: lv(rows[0]) }, ttsLv = { _default: rows[0].cbs.tts.value };
       for (const r of rows.slice(1)) { const n = r.ip.value.trim(); if (!n || list.includes(n) || list.length >= LOT_MAX) continue; list.push(n); const k = await nameKey(g.code, n); const v = valOf(r.cbs); if (v.filter(x => x !== "nott").length && v.join() !== d0.join()) students[k] = v;
-        if (r.cbs.tier.value !== tiers._default) tiers[k] = r.cbs.tier.value; if (r.cbs.tts.value !== ttsLv._default) ttsLv[k] = r.cbs.tts.value; }
+        { const o = lv(r); if (o.jx !== ladder._default.jx || o.rq !== ladder._default.rq) ladder[k] = o; } if (r.cbs.tts.value !== ttsLv._default) ttsLv[k] = r.cbs.tts.value; }
       save.disabled = true; msg.textContent = "加密並儲存中……";
       try {
         const latest = (await fetchConfig(g.code)) || {};
-        const j = await apiCall({ action: "saveconfig", ...cred(), c: g.code, config: Object.assign({}, latest, { default: d0, students, tiers, ttsLv, roster: await sealFor(TD.me.pub, list), tasks: latest.tasks || [] }) });
+        const j = await apiCall({ action: "saveconfig", ...cred(), c: g.code, config: Object.assign({}, latest, { default: d0, students, ladder, ttsLv, roster: await sealFor(TD.me.pub, list), tasks: latest.tasks || [] }) });
         if (!j.ok) { msg.textContent = errMsg(j); save.disabled = false; return; }
         setLotList(g.name, list);
         msg.textContent = `已儲存 ${list.length} 位學生。學生平板約 15 秒內會自動套用；這台電腦的抽籤名單「${g.name}」也更新了。`;

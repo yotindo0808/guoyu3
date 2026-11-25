@@ -1,7 +1,7 @@
 
 /* 版面構想：上方一列工具（課次、分頁、模式、注音、字級），下方一次只顯示一張卡片，用按鈕或左右鍵切換，盡量不必上下滑動 */
 /* 全站芫荽體：介面文字另存一份小字型；各課的芫荽體（--lf）與注音芫荽體（--zf）依課次子集，進入哪一課才載入 */
-@font-face { font-family: "IansuiUI"; src: url(fonts/ui.woff2?v=44b6ccbf) format("woff2"); font-display: block; }
+@font-face { font-family: "IansuiUI"; src: url(fonts/ui.woff2?v=263c808a) format("woff2"); font-display: block; }
 :root {
   --bg: #f4f1ea;            /* 米白紙色 */
   --paper: #fffdf8;
@@ -1066,7 +1066,7 @@ table.tower th { background: var(--accent-soft); } table.tower th .pic { max-hei
 .wchip.zc { background: #fff; }
 .ttag { font-size: 12px; background: #eee; border-radius: 999px; padding: 1px 8px; color: var(--muted); }
 .tsel.sm { font-size: 13px; padding: 2px 4px; }
-.tierseg { display: none; } html:not(.proj):not(.stulock):not(.tmode) .tierseg { display: inline-flex; }
+.tierseg { display: none !important; }
 .loading { padding: 2em; text-align: center; }
 html.notts .say { display: none !important; }
 
@@ -1225,6 +1225,20 @@ html.proj .rstop .rname { color: #eef6f4; }
 .cp2 .ztones .zk { font-size: calc(var(--kh, 56px) * .62); }
 /* 自己造詞的手寫格：依畫面高度縮放，矮螢幕也放得下 */
 .zcr .hwcv canvas { width: clamp(120px, calc(100vh - 440px), 220px); height: clamp(120px, calc(100vh - 440px), 220px); }
+
+/* 提示階梯 */
+.lad .lhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 8px; }
+.lsteps { display: flex; gap: 6px; flex-wrap: wrap; }
+.lstep { font-family: var(--ui); font-size: .8em; padding: .2em .7em; border-radius: 999px; border: 1.5px solid var(--line); color: var(--mute, #777); }
+.lstep.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.lbtns { margin-left: auto; display: flex; gap: 8px; }
+.lhint { border-color: #e0a040; }
+.larea { border: 2px dashed var(--line); border-radius: 14px; padding: 10px 14px; }
+.larea .inst { margin-bottom: 6px; }
+.lres { min-height: 1.6em; margin-top: 6px; }
+.larea .q.qs { display: block; }
+.larea .q.qs > .stem:empty { display: none; }
+.larea .q.qs .opts { max-width: 46em; margin: 0 auto; }
 
 
 .lockp{display:block;padding:14px 18px;border:2px dashed #c9b28a;border-radius:12px;background:#fffaf0;color:#6b5a3a;line-height:1.8}
