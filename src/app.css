@@ -1239,3 +1239,5 @@ html.proj .rstop .rname { color: #eef6f4; }
 .larea .q.qs { display: block; }
 .larea .q.qs > .stem:empty { display: none; }
 .larea .q.qs .opts { max-width: 46em; margin: 0 auto; }
+
+.ladpic { text-align: center; } .ladpic .pic { height: 22vh; width: auto; border-radius: 12px; }

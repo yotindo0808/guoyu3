@@ -1240,6 +1240,8 @@ html.proj .rstop .rname { color: #eef6f4; }
 .larea .q.qs > .stem:empty { display: none; }
 .larea .q.qs .opts { max-width: 46em; margin: 0 auto; }
 
+.ladpic { text-align: center; } .ladpic .pic { height: 22vh; width: auto; border-radius: 12px; }
+
 
 .lockp{display:block;padding:14px 18px;border:2px dashed #c9b28a;border-radius:12px;background:#fffaf0;color:#6b5a3a;line-height:1.8}
 .lockp .unlockbtn{margin-left:.6em;font-size:.85em}

@@ -1803,13 +1803,21 @@ const VIEWS = {
     const s2 = slide("", kick("② 仿寫：只換「情況」"), el("div", { class: "hint" }, "選一󠇡個󠇡情況放進空󠇡格，唸唸看。"), blocks(["", J.demo[1], J.demo[2]]), st2, chips2);
     if (T === "std" && J.ladder) {
       /* 學生練習：看示範之後，每一󠇢題都用提示階梯（詞卡排句 → 句框＋詞庫 → 句框 → 自己造句） */
-      const jl = (P, k, i, pat) => ladderSlide({ type: "jx", label: `${pat} 第 ${i + 1} 題`, kick: `${pat}　第 ${i + 1} 題`, ref: P.cards.join(""),
+      const jl = (P, k, i, pat) => ladderSlide({ type: "jx", label: `${pat} 第 ${i + 1} 題`, kick: `${pat}　第 ${i + 1} 題`, ref: P.cards.join(""), stem: P.pic ? [el("div", { class: "ladpic" }, pic(P.pic, "看圖說說看")), el("div", { class: "hint", style: "text-align:center" }, "看圖，說說看圖裡有什麼。")] : null,
         makers: [() => ordBox(P.cards, `${pat}${i + 1}：詞卡排句`), () => fillBox(P.fill, P.bank, `${pat}${i + 1}：句框＋詞庫`),
           () => openBox(`照著句框，用「${pat}」說或寫一󠇡句。`, k.frame3, k.kws, `${pat}${i + 1}：句框`), () => openBox(`用「${pat}」自己造一󠇡句。`, "", k.kws, `${pat}${i + 1}：自己造句`)] });
       const B = L.bd;
       const bd1 = slide("", kick("看示範"), el("div", { class: "stem big-line" }, B.lkws.reduce((t, k) => t.split(k).join(`\u0001${k}\u0002`), B.demo).replace(/\u0001/g, '<b class="kw">').replace(/\u0002/g, "</b>")), el("div", { class: "hint" }, B.hint), sayBtn(B.demo, "唸句子󠇡"));
       const secs = [{ name: J.pat, hint: "先看示範，再一󠇢題一󠇢題練習。需要時按「給我提示」。", slides: [s1, ...J.ladder.map((P, i) => jl(P, J, i, J.pat))] },
-        { name: B.pat, hint: "先看示範，再一󠇢題一󠇢題練習。", slides: [bd1, ...B.ladder.map((P, i) => jl(P, { frame3: B.frame3, kws: B.lkws }, i, B.pat))] },
+        { name: B.pat, hint: "看示範 → 想一󠇢想 → 看圖練習。需要時按「給我提示」。", slides: (() => {
+          /* ① 看示範：課文句子󠇡分成四塊上色 */
+          const C4 = ["b1", "b2", "b2", "b3"]; const blk = el("div", { class: "blocks" }); B.demoParts.forEach((t, k) => blk.append(el("span", { class: "blk " + C4[k] }, t))); blk.append(el("span", { class: "blk" }, "。"));
+          const lg = el("div", { class: "blegend" }); B.blocks.forEach((t, k) => k !== 2 && lg.append(el("span", { class: "blk " + C4[k] }, t)));
+          const b1 = slide("", kick("① 看示範"), el("div", { class: "stem" }, "課文裡的句子󠇡："), blk, lg, el("div", { class: "hint big-line" }, B.explain), sayBtn(B.demoParts.join("") + "。", "唸句子󠇡"));
+          /* ② 想一󠇢想：哪一󠇡句用對了 */
+          const c = choiceQ(mk(B.think.q), B.think.opts, B.think.ans, `${B.pat}：想一󠇢想`); const b2 = slide("", kick("② 想一󠇢想"), sayRow(c), c, refBox(esc(B.think.why))); b2.reveal = c.reveal;
+          return [b1, b2, ...B.ladder.map((P, i) => jl(P, { frame3: B.frame3, kws: B.lkws }, i, B.pat))];
+        })() },
         { name: "完成", slides: [finishSlide()] }];
       return deck(secs, { submit: true });
     }
