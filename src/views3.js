@@ -406,6 +406,69 @@ function towerSlide() {
   return s;
 }
 
+/* ── 習作第 65 頁：行程表（讓學生回家能自己完成習作）── */
+const IVS_RE = /[\u{E0100}-\u{E01EF}]/u;
+/* 在段落裡把詞語框起來：跨過詞語按鈕、生字標示也找得到；多音字的異體選擇符跟著前一個字，讀音不會跑掉 */
+function markWord(root, word) {
+  const want = [...String(word)].filter(c => !IVS_RE.test(c)); if (!want.length) return null;
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); const map = [];
+  for (let n; (n = tw.nextNode());) { let i = 0; for (const ch of n.nodeValue) { if (IVS_RE.test(ch)) { const m = map[map.length - 1]; if (m && m[1] === n) m[3] += ch.length; } else map.push([ch, n, i, i + ch.length]); i += ch.length; } }
+  let at = -1; for (let k = 0; k + want.length <= map.length; k++) if (want.every((c, j) => map[k + j][0] === c)) { at = k; break; }
+  if (at < 0) return null;
+  const seg = new Map(); map.slice(at, at + want.length).forEach(([, n, a, b]) => { const s = seg.get(n); if (s) s[1] = b; else seg.set(n, [a, b]); });
+  let first = null;
+  seg.forEach(([a, b], n) => { const r = document.createRange(); r.setStart(n, a); r.setEnd(n, b); const m = el("mark", { class: "hwmk" }); r.surroundContents(m); first = first || m; });
+  return first;
+}
+const hwAns = t => (String(t).match(/\{[^}]*\}/g) || []).map(x => x.slice(1, -1));
+/* 一列一張：和習作同一句話，按空格再按詞語；「給我提示」第一次打開課文段落，第二次把答案框起來 */
+function hwRowSlide(r, label) {
+  const ctx = {}; const line = fillLine(bparts(r.t), [], ctx, label); const ans = hwAns(r.t);
+  const stem = el("div", { class: "big-line hwline" }); stem.append(line);
+  const chips = bankBox(shuffle([...ans, ...(r.opts || [])]).map(b => ({ t: b, h: b })), ctx);
+  const para = el("div", { class: "rpara hwpara", hidden: "" }, `<div class="hwpl">課文第 ${r.p} 段</div><p class="para">${paraHTML(r.p - 1)}</p>`);
+  const tid = qid(`${label}（提示）`); let step = 0;
+  const tip = el("button", { type: "button", class: "btn hwtip only-stu" }, "💡 給我提示");
+  tip.onclick = () => {
+    step++;
+    if (lockedText()) {   /* 課文上鎖（例如在家）：改成提示課本段落和答案的第一個字 */
+      if (step === 1) { para.innerHTML = `<div class="hwpl">提示</div><p class="hwlk">${L.hw65.tipBook.replace("#", r.p)}</p>`; para.hidden = false; tip.textContent = "💡 再給我提示"; logText(tid, "提示課本段落"); }
+      else { para.insertAdjacentHTML("beforeend", `<p class="hwlk">${L.hw65.tipFirst}${ans.map(w => `「${[...w][0]}」`).join("、")}</p>`); tip.disabled = true; tip.textContent = "提示都給你了"; logText(tid, "提示課本段落、答案第一個字"); }
+      return;
+    }
+    if (step === 1) { para.hidden = false; tip.textContent = "💡 再給我提示"; logText(tid, "打開課文段落"); }
+    else { let m = null; ans.forEach(w => { const x = markWord(para, w); m = m || x; }); tip.disabled = true; tip.textContent = "答案框起來了"; logText(tid, "打開課文段落、框出答案"); if (m) m.scrollIntoView({ block: "nearest" }); }
+  };
+  const left = [el("div", { class: "hwhead" }, `${pic(r.pic, r.h)}<b class="hwh">${r.h}</b>`)];
+  const s = slide("hwrow", kick("習作 65 頁"), splitBox(left, [sayRow(stem), stem, chips, tip, para]));
+  s.onshow = () => { ctx.slideBlanks = line.blanks; const b = line.blanks.find(x => !x.classList.contains("ok")); if (b) b.click(); };
+  s.reveal = () => { revealBlanks(line.blanks); para.hidden = false; };
+  return s;
+}
+/* 整張行程表：排法和習作一樣，括號裡的答案按一下才出現，用來對答案、照著抄回習作 */
+function hwTableSlide(H, title) {
+  const tb = el("div", { class: "hwtable", role: "table", "aria-label": H.title });
+  tb.append(el("div", { class: "hwr hwth", role: "row" }, '<span role="columnheader">行程</span><span role="columnheader">活動內容</span>'));
+  const boxes = [];
+  H.rows.forEach(r => {
+    const row = el("div", { class: "hwr" + (hwAns(r.t).length ? "" : " plain"), role: "row" }); row.append(el("span", { class: "hwc1", role: "cell" }, r.h));
+    const c = el("span", { class: "hwc2", role: "cell" });
+    String(r.t).split(/(\{[^}]*\})/).forEach(p => { const m = p.match(/^\{(.*)\}$/); if (m) { c.append("（"); const b = peekBox(m[1], "inl"); boxes.push(b); c.append(b, "）"); } else if (p) c.insertAdjacentHTML("beforeend", p); });
+    row.append(c); tb.append(row);
+  });
+  const all = el("button", { type: "button", class: "btn hwall" }, "👀 全部顯示");
+  all.onclick = () => boxes.forEach(b => b.classList.add("open"));
+  const s = slide("hwtab", kick(title || "習作 65 頁"), el("div", { class: "hwq" }, H.q), tb, el("div", { class: "hwfoot" }, ""));
+  s.querySelector(".hwfoot").append(all, el("span", { class: "hint only-stu" }, "按一下括號看答案，照著寫到習作上。"));
+  s.reveal = () => all.click();
+  return s;
+}
+function hwSlides() {
+  const H = L.hw65; if (!H) return [];
+  if (proj()) return [hwTableSlide(H)];
+  return [...H.rows.filter(r => hwAns(r.t).length).map(r => hwRowSlide(r, `習作65頁：${r.h}`)), hwTableSlide(H, "整張行程表")];
+}
+
 /* ══════════ 各分頁 ══════════ */
 const VIEWS = {
   text() {
@@ -416,6 +479,7 @@ const VIEWS = {
         { name: "分段讀", hint: "畫底線的是詞語，按一下看意思；黃色底的字是本課生字。", slides: [...Array(n).keys()].map(i => paraSlide(i)) },
         { name: "課文結構", slides: structSlides() },
         { name: "參觀路線", hint: "按一下每一站，看看那裡有什麼。", slides: [towerSlide()] },
+        ...(L.hw65 ? [{ name: "習作65頁", hint: "和習作第 65 頁一樣的行程表。先讓學生說，再按括號看答案。", slides: hwSlides() }] : []),
         { name: "段落大意", hint: "先按空格，再按詞語。", slides: bankSlides(L.summary.map(x => x.t), L.sumBank, "段落大意", { kick: L.summary.map(x => x.label) }) },
         { name: "提問", slides: L.projq.map(projQSlide), extra: iconLegend() },
       ];
@@ -438,6 +502,7 @@ const VIEWS = {
       { name: "課文結構", hint: "這一課分成起因、經過、收穫三部分。", slides: structSlides() },
       { name: "段落大意", hint: "先按空格，再按詞語。詞庫裡有用不到的詞。", slides: bankSlides(L.summary.map(x => x.t), L.sumBank, "段落大意", { kick: L.summary.map(x => x.label) }) },
       { name: "參觀路線", hint: "按一下每一站，在跳出來的視窗裡填空。", slides: [towerSlide()] },
+      ...(L.hw65 ? [{ name: "習作65頁", hint: "和習作第 65 頁一樣，一列一列填。不會的時候按「給我提示」，最後看整張表抄到習作上。", slides: hwSlides() }] : []),
       { name: "理解與推論", hint: "先自己試試看；需要時按「給我提示」。", slides: R },
       { name: "完成", slides: [finishSlide()] },
     ];

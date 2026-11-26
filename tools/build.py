@@ -5,6 +5,8 @@
   python3 tools/build.py prod   → 輸出到 dist/：index.html、app.js…（正式網站，老師確認後才做）
 
 課文密碼：環境變數 GUOYU_PW，或 private/pw.txt（不提交）。課文全文：private/text課次.txt（不提交）。
+沒有課文原稿時：沿用上一次建置好的 sealed.json（加密課文不變），只更新題目資料、字型與網站程式；
+字型子集會把上一次字型裡已有的字（含課文用字）一併保留。
 """
 import base64, hashlib, html, io, json, os, re, shutil, sys, importlib.util
 from fontTools import subset
@@ -107,19 +109,33 @@ def subset_font(src, chars, out, keep_ivs=False):
     subset.save_font(font, out, opts)
     return os.path.getsize(out)
 
-def build_lesson(lid, key):
+def old_chars(lid):
+    """上一次建置的字型子集裡已有的字（沒有課文原稿時，用來保留課文用字）"""
+    from fontTools.ttLib import TTFont
+    got = set()
+    for base in (OUT, os.path.join(ROOT, "t") if TEST else ROOT, ROOT):
+        for f in ("l.woff2", "z.woff2"):
+            fp = os.path.join(base, "lessons", lid, f)
+            if os.path.exists(fp): got |= {chr(u) for u in TTFont(fp).getBestCmap() if u > 0x7F and u < 0xE0100}
+    return got
+
+def build_lesson(lid, key, keep=None):
     src = os.path.join(ROOT, "lessons_src", lid)
     L = load_py(os.path.join(src, "lesson.py"), f"lesson{lid}").LESSON
     rules = load_py(os.path.join(src, "zyrules.py"), f"zyrules{lid}").RULES
     art = load_py(os.path.join(src, "art.py"), f"art{lid}").ART
     D = annotate(L, rules)
     # 課文
-    text = [x for x in open(os.path.join(PRIV, f"text{lid}.txt"), encoding="utf-8").read().split("\n") if x.strip()]
     words = [w["w"] for w in L["words"]]
     chars = {c["c"] for c in L["cards"]}
-    paras = [para_html(t, words, chars, rules) for t in text]
-    winp = [[w for w in sorted(words, key=lambda w: t.find(w)) if w in t] for t in text]
-    D["text"] = [placeholder(i, ws) for i, ws in enumerate(winp)]
+    if keep is None:
+        text = [x for x in open(os.path.join(PRIV, f"text{lid}.txt"), encoding="utf-8").read().split("\n") if x.strip()]
+        paras = [para_html(t, words, chars, rules) for t in text]
+        winp = [[w for w in sorted(words, key=lambda w: t.find(w)) if w in t] for t in text]
+        D["text"] = [placeholder(i, ws) for i, ws in enumerate(winp)]
+    else:   # 沿用上一次的加密課文與段落佔位
+        text, paras = [], []
+        D["text"] = keep[lid]["text"]
     # 彩色生字圖（依生字順序）
     imgdir = os.path.join(PRIV, f"img{lid}")
     imgs = [webp_uri(os.path.join(imgdir, f"{c['c']}.png")) if os.path.exists(os.path.join(imgdir, f"{c['c']}.png")) else "" for c in L["cards"]]
@@ -127,22 +143,32 @@ def build_lesson(lid, key):
     out = os.path.join(OUT, "lessons", lid); os.makedirs(os.path.join(out, "img"), exist_ok=True)
     data = json.dumps(D, ensure_ascii=False, separators=(",", ":"))
     open(os.path.join(out, "data.json"), "w", encoding="utf-8").write(data)
-    json.dump(seal({"text": paras, "img": imgs}, key), open(os.path.join(out, "sealed.json"), "w"))
+    if keep is None: json.dump(seal({"text": paras, "img": imgs}, key), open(os.path.join(out, "sealed.json"), "w"))
+    else: open(os.path.join(out, "sealed.json"), "w").write(keep[lid]["sealed"])
     for n, s in art.items(): open(os.path.join(out, "img", n + ".svg"), "w", encoding="utf-8").write(s)
     # 字型子集：這一課用到的字
     chars_all = set(data) | set("".join(paras)) | set("".join(text))
     chars_all = {c for c in chars_all if ord(c) > 0x7F}
+    if keep is not None: chars_all |= keep[lid]["chars"]
     a = subset_font(IANSUI, chars_all, os.path.join(out, "l.woff2"))
     b = subset_font(BPMF, chars_all, os.path.join(out, "z.woff2"), keep_ivs=True)
-    v = hashlib.sha1((data + json.dumps(paras, ensure_ascii=False) + "".join(art.values())).encode()).hexdigest()[:8]
+    v = hashlib.sha1((data + (json.dumps(paras, ensure_ascii=False) if keep is None else keep[lid]["sealed"]) + "".join(art.values())).encode()).hexdigest()[:8]
     print(f"第{lid}課：data {len(data)//1024}KB、芫荽 {a//1024}KB、注音芫荽 {b//1024}KB、字數 {len(chars_all)}")
     return {"id": lid, "no": L["no"], "title": L["title"], "v": v}
 
 def main():
+    keep = None; k = None
+    if not all(os.path.exists(os.path.join(PRIV, f"text{lid}.txt")) for lid in LESSON_IDS):
+        keep = {}
+        for lid in LESSON_IDS:
+            old = os.path.join(OUT, "lessons", lid)
+            keep[lid] = {"sealed": open(os.path.join(old, "sealed.json"), encoding="utf-8").read(),
+                         "text": json.load(open(os.path.join(old, "data.json"), encoding="utf-8"))["text"], "chars": old_chars(lid)}
+        print("找不到課文原稿：沿用上一次的加密課文")
     if os.path.exists(OUT) and TEST: shutil.rmtree(OUT)
     os.makedirs(OUT, exist_ok=True)
-    k = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=base64.b64decode(LOCK["s"]), iterations=LOCK["n"]).derive(pw().encode())
-    idx = [build_lesson(lid, k) for lid in LESSON_IDS]
+    if keep is None: k = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=base64.b64decode(LOCK["s"]), iterations=LOCK["n"]).derive(pw().encode())
+    idx = [build_lesson(lid, k, keep) for lid in LESSON_IDS]
     os.makedirs(os.path.join(OUT, "lessons"), exist_ok=True)
     json.dump({"lessons": idx}, open(os.path.join(OUT, "lessons", "index.json"), "w", encoding="utf-8"), ensure_ascii=False)
     # 網站外框

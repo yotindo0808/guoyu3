@@ -1,7 +1,7 @@
 
 /* 版面構想：上方一列工具（課次、分頁、模式、注音、字級），下方一次只顯示一張卡片，用按鈕或左右鍵切換，盡量不必上下滑動 */
 /* 全站芫荽體：介面文字另存一份小字型；各課的芫荽體（--lf）與注音芫荽體（--zf）依課次子集，進入哪一課才載入 */
-@font-face { font-family: "IansuiUI"; src: url(fonts/ui.woff2?v=df70bf1e) format("woff2"); font-display: block; }
+@font-face { font-family: "IansuiUI"; src: url(fonts/ui.woff2?v=56048dd5) format("woff2"); font-display: block; }
 :root {
   --bg: #f4f1ea;            /* 米白紙色 */
   --paper: #fffdf8;
@@ -1259,6 +1259,35 @@ html.proj .rstop .rname { color: #eef6f4; }
 .dbs .dblist li { counter-increment: dbn; grid-template-columns: 1.4em 6.2em minmax(0, 1fr); }
 .dbs .dblist li::before { content: counter(dbn) "."; color: var(--mute, #777); }
 .dbs .dbdef .dbpic .pic { height: 3.6em; }
+
+/* ── 習作第 65 頁：行程表 ── */
+.hwrow .split { grid-template-columns: minmax(0, .62fr) minmax(0, 1.38fr); }
+.hwhead { display: grid; justify-items: center; gap: .3em; }
+.hwhead .pic { width: 100%; max-height: 34vh; object-fit: contain; border-radius: 14px; background: #fff; }
+.hwh { font-size: 1.5em; color: var(--accent); }
+.hwline { line-height: 2.1; }
+.hwrow .bank { margin-top: .5em; }
+.hwtip { margin-top: .7em; font-size: .7em; }
+.hwpara { margin-top: .5em; border-left: 5px solid var(--accent-2); background: #fffaf0; border-radius: 8px; padding: .3em .6em; }
+.hwpara .para { max-height: 30vh; }
+.hwpl { font-family: var(--ui); font-size: .6em; color: #8a5a12; }
+mark.hwmk { background: #ffe08a; color: inherit; border-radius: 4px; box-shadow: 0 0 0 2px #e9a23b; }
+.hwq { font-size: .8em; margin-bottom: .2em; }
+.hwtab .kicker { margin-bottom: .2em; }
+.hwtable { display: grid; border: 2px solid #b48a4a; border-radius: 10px; overflow: hidden; background: #fff; font-size: .78em; }
+.hwr { display: grid; grid-template-columns: 5.4em 1fr; border-top: 1px solid #d9c3a0; }
+.hwr:first-child { border-top: 0; }
+.hwr > span { padding: .05em .5em; line-height: 1.75; }
+.hwc1 { white-space: nowrap; font-weight: 700; text-align: center; background: #fbf3e4; border-right: 1px solid #d9c3a0; display: grid; place-items: center; }
+.hwth > span:first-child { border-right: 1px solid #d9c3a0; }
+.hwth { background: #f1e2c6; }
+.hwth > span { line-height: 1.5; background: #f1e2c6; font-weight: 700; text-align: center; font-family: var(--ui); }
+.hwr.plain .hwc2 { color: #4d5755; }
+.hwc2 .fpk.inl { vertical-align: baseline; padding: 0 .25em; min-width: 3.4em; }
+.hwfoot { display: flex; align-items: center; gap: .8em; margin-top: .5em; }
+.hwall { font-size: .7em; }
+html.proj .hwtable { background: #fff; color: #222; }
+.hwlk { margin: .2em 0; font-size: .95em; }
 
 
 .lockp{display:block;padding:14px 18px;border:2px dashed #c9b28a;border-radius:12px;background:#fffaf0;color:#6b5a3a;line-height:1.8}
