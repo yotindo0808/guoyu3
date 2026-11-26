@@ -1241,3 +1241,21 @@ html.proj .rstop .rname { color: #eef6f4; }
 .larea .q.qs .opts { max-width: 46em; margin: 0 auto; }
 
 .ladpic { text-align: center; } .ladpic .pic { height: 22vh; width: auto; border-radius: 12px; }
+
+/* 詞義練習：詞庫改成右邊窄的直排，空間留給解釋文字；圖放在解釋右邊 */
+.dbs .split { display: grid; grid-template-columns: minmax(0, 1fr) 8.5em; gap: 1.2em; align-items: start; }
+.dbs .sR { position: sticky; top: 0; }
+.dbs .dbank { display: flex; flex-direction: column; gap: .55em; padding: .6em; }
+.dbs .dbank .chip { width: 100%; justify-content: center; }
+.dbs .dblist { margin: .2em 0 .4em 1.4em; gap: .9em; }
+.dbs .dblist li { line-height: 1.6; }
+.dbs .dbdef { display: flex; align-items: center; gap: .8em; }
+.dbs .dbdef .dbpic { display: block; margin: 0; flex: none; order: 2; }
+.dbs .dbdef .dbpic .pic { height: 4.2em; }
+
+.dbs .dblist li { display: grid; grid-template-columns: 6.2em minmax(0, 1fr); column-gap: .7em; align-items: center; }
+.dbs .dblist li .dbb { min-width: 5.8em; }
+.dbs .dblist { counter-reset: dbn; list-style: none; margin-left: 0; gap: .6em; }
+.dbs .dblist li { counter-increment: dbn; grid-template-columns: 1.4em 6.2em minmax(0, 1fr); }
+.dbs .dblist li::before { content: counter(dbn) "."; color: var(--mute, #777); }
+.dbs .dbdef .dbpic .pic { height: 3.6em; }

@@ -1045,7 +1045,7 @@ function defBankSlides(items, o) {
       r.b.innerHTML = w.h; r.b.classList.remove("sel", "ok", "no"); r.b.classList.add(ok ? "ok" : "no");
       if (!proj() && !r.done) logAns(r.q, ok, w.t);
       if (ok) { r.done = true; c.classList.add("used"); } pick(rows.find(x => !x.done) || null); }; chips.append(c); });
-    const s = slide("", el("div", { class: "hint" }, `先按空格，再從${o.noun || "詞"}庫選出符合解釋的${o.noun || "詞語"}。${o.noun || "詞"}庫裡有用不到的${o.noun || "詞"}。`), splitBox([list], [chips]));
+    const s = slide("dbs", el("div", { class: "hint" }, `先按空格，再從${o.noun || "詞"}庫選出符合解釋的${o.noun || "詞語"}。${o.noun || "詞"}庫裡有用不到的${o.noun || "詞"}。`), splitBox([list], [chips]));
     s.onshow = () => { if (!sel) pick(rows.find(x => !x.done) || null); };
     s.reveal = () => rows.forEach(r => { r.b.innerHTML = r.it.h; r.b.classList.add("ok"); r.done = true; });
     out.push(s);

@@ -126,18 +126,18 @@ function ladderStart(type) {
   v = parseInt(v, 10); return v >= 1 && v <= 4 ? v : 2;
 }
 /* 第 1 階（句子）：詞卡排句，做完回呼 */
-function ordBox(cards, label) {
+function ordBox(cards, label, oo = {}) {
   const q = qid(label); const box = el("div", { class: "ord" }); const line = el("div", { class: "ordline big-line" }); const pool = el("div", { class: "bank" });
   let seq = []; const res = el("div", { class: "pres", "aria-live": "polite" });
-  const paint = () => { line.innerHTML = seq.length ? seq.map(k => `<span class="wchip">${cards[k]}</span>`).join("") : '<span class="hint">按下面的詞卡排成句子</span>'; };
+  const paint = () => { line.innerHTML = seq.length ? seq.map(k => `<span class="wchip">${cards[k]}</span>`).join("") : `<span class="hint">${oo.ph || "按下面的詞卡排成句子"}</span>`; };
   const btns = shuffle(cards.map((c, k) => k)).map(k => { const b = el("button", { type: "button", class: "chip" }, cards[k]); b.onclick = () => { if (box.classList.contains("answered")) return; seq.push(k); b.disabled = true; paint();
       if (seq.length === cards.length) { const ok = seq.every((x, i) => cards[x] === cards[i]); logAns(q, ok, seq.map(x => cards[x]).join(""));
-        if (ok) { box.classList.add("answered"); res.innerHTML = '<span class="okmsg">√ 排對了！唸唸看。</span>'; res.append(sayBtn(cards.join(""), "唸句子")); }
+        if (ok) { box.classList.add("answered"); res.innerHTML = `<span class="okmsg">√ 排對了！${oo.ph ? "" : "唸唸看。"}</span>`; if (!oo.ph) res.append(sayBtn(cards.join(""), "唸句子")); }
         else { res.innerHTML = '<span class="nomsg">順序不太對，按「重排」再試一次。</span>'; } } }; return b; });
   btns.forEach(b => pool.append(b));
   const back = el("button", { type: "button", class: "btn" }, "退一張"); back.onclick = () => { if (box.classList.contains("answered") || !seq.length) return; const k = seq.pop(); btns.find(b => b.textContent === cards[k] && b.disabled).disabled = false; res.innerHTML = ""; paint(); };
   const redo = el("button", { type: "button", class: "btn" }, "重排"); redo.onclick = () => { if (box.classList.contains("answered")) return; seq = []; btns.forEach(b => b.disabled = false); res.innerHTML = ""; paint(); };
-  paint(); box.append(el("div", { class: "inst" }, "照順序按詞卡，排成一句話。"), line, pool, tools(back, redo), res);
+  paint(); box.append(el("div", { class: "inst" }, oo.inst || "照順序按詞卡，排成一句話。"), line, pool, tools(back, redo), res);
   box.isDone = () => box.classList.contains("answered"); return box;
 }
 /* 第 2 階：句框＋詞庫 */
@@ -359,13 +359,19 @@ function iconLegend() { return el("span", { class: "legend ui" }, `${ICON_B}聽�
 
 /* ── 結構：總說／分說／總結 ── */
 function structSlides() {
-  const segs = ["總說", "分說", "總結"];
+  const segs = [...new Set(L.struct.map(x => x.seg))];
   if (proj()) {
     const g = el("div", { class: "tree" });
-    segs.forEach(sg => { const ps = L.struct.filter(x => x.seg === sg).map(x => x.p); const c = el("div", { class: "tnode" }); c.append(peekBox(`<b>${sg}</b>`, "tseg"), el("div", { class: "tps" }, `第 ${ps.join("、")} 段`), el("div", { class: "hint" }, L.structNote[sg])); g.append(c); });
-    return [slide("", kick("課文結構"), el("div", { class: "hint" }, "這一課是說明文，用「總說、分說、總結」的方式寫。"), g)];
+    segs.forEach(sg => { const ps = L.struct.filter(x => x.seg === sg).map(x => x.p); const c = el("div", { class: "tnode" }); c.append(peekBox(`<b>${sg}</b>`, "tseg"), el("div", { class: "tps" }, ps.length > 2 ? `第 ${ps[0]} 到第 ${ps[ps.length - 1]} 段` : `第 ${ps.join("、")} 段`), el("div", { class: "hint" }, L.structNote[sg])); g.append(c); });
+    return [slide("", kick("課文結構"), el("div", { class: "hint" }, L.structIntro || ""), g)];
   }
-  return L.struct.map(x => { const r = pickRow(segs, segs.indexOf(x.seg), `課文結構：第${x.p}段`, "ab"); const stem = el("div", { class: "stem" }, `第 ${x.p} 段是「總說」、「分說」，還是「總結」？`); const s = slide("", sayRow(stem), stem, el("details", { class: "pqpara" }, `<summary>看第 ${x.p} 段課文</summary><p class="para">${paraHTML(x.p - 1)}</p>`), el("div", { class: "ynrow" }, "")); s.querySelector(".ynrow").append(r); s.reveal = r.reveal; return s; });
+  /* 學生練習：跟著「起因、經過、收穫」三部分讀懂結構 */
+  return L.structQ.map((x, i) => {
+    const lb = `課文結構${i + 1}：${x.seg}`; const tag = kick(x.seg);
+    const para = x.p.length ? el("details", { class: "pqpara" }, `<summary>看第 ${x.p.join("、")} 段課文</summary>${x.p.map(n => `<p class="para">${paraHTML(n - 1)}</p>`).join("")}`) : null;
+    if (x.type === "order") { const stem = el("div", { class: "stem" }, mk(x.q)); const box = ordBox(x.cards, lb, { inst: "依照作者走的順序，一張一張按。", ph: "第一站 → 第二站 → 第三站 → 第四站" }); const s = slide("", tag, sayRow(stem), stem, box, para); s.reveal = () => {}; return s; }
+    const c = choiceQ(mk(x.q), x.opts, x.ans, lb); const s = slide("", tag, sayRow(c), c, para); s.reveal = c.reveal; return s;
+  });
 }
 function peekBox(html, cls) { const b = el("button", { type: "button", class: "fpk " + (cls || "") }, `<span class="fpk-c">${html}</span><span class="fpk-h">按一下顯示</span>`); b.onclick = () => b.classList.toggle("open"); return b; }
 /* 三座塔表格 */
@@ -429,7 +435,7 @@ const VIEWS = {
           () => fillBox(x.fill, x.bank, `${lb}：句框＋詞庫`), () => openBox("用句框說或寫出答案。", x.frame, [], `${lb}：句框`), () => openBox("用自己的話說或寫出答案。", "", [], `${lb}：自己回答`)] }); })() : frameSlide(x.q, x.frame, x.ref, `理解與推論${i + 1}：${x.q}`)));
     const secs = [
       { name: "分段讀", hint: "按詞語可以看意思。", slides: [...Array(n).keys()].map(i => paraSlide(i)) },
-      { name: "課文結構", hint: "想一想每一段在做什麼。", slides: structSlides() },
+      { name: "課文結構", hint: "這一課分成起因、經過、收穫三部分。", slides: structSlides() },
       { name: "段落大意", hint: "先按空格，再按詞語。詞庫裡有用不到的詞。", slides: bankSlides(L.summary.map(x => x.t), L.sumBank, "段落大意", { kick: L.summary.map(x => x.label) }) },
       { name: "參觀路線", hint: "按一下每一站，在跳出來的視窗裡填空。", slides: [towerSlide()] },
       { name: "理解與推論", hint: "先自己試試看；需要時按「給我提示」。", slides: R },
