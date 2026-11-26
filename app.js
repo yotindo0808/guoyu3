@@ -734,8 +734,8 @@ async function loadConfig() {
 /* 學生平板每 15 秒看一󠇡次老師的設定：今日任務改了就自動更新（不󠇡用重󠇡新整理），老師按「暫停」就蓋住畫面 */
 let POLL = null, CFGSIG = "";
 function applyConfig(c, first) {
-  const sig = JSON.stringify([c.default, c.students, c.tasks, c.tiers, c.ttsLv]); const changed = sig !== CFGSIG; CFGSIG = sig;
-  CFG.default = c.default || CFG.default; CFG.students = c.students || {}; CFG.tasks = c.tasks || []; CFG.tiers = c.tiers || {}; CFG.ttsLv = c.ttsLv || {};
+  const sig = JSON.stringify([c.default, c.students, c.tasks, c.tiers, c.ttsLv, c.ladder]); const changed = sig !== CFGSIG; CFGSIG = sig;
+  CFG.default = c.default || CFG.default; CFG.students = c.students || {}; CFG.tasks = c.tasks || []; CFG.tiers = c.tiers || {}; CFG.ttsLv = c.ttsLv || {}; CFG.ladder = c.ladder || {};
   CFG.pause = !!(c.pause && c.pause.on); pauseVeil();
   if (first || changed) { renderTabs(); if (!proj() && page() === "lesson") { render(); if (!first) toast("老師更新了練習內容"); } }
 }
@@ -1046,7 +1046,7 @@ function defBankSlides(items, o) {
       r.b.innerHTML = w.h; r.b.classList.remove("sel", "ok", "no"); r.b.classList.add(ok ? "ok" : "no");
       if (!proj() && !r.done) logAns(r.q, ok, w.t);
       if (ok) { r.done = true; c.classList.add("used"); } pick(rows.find(x => !x.done) || null); }; chips.append(c); });
-    const s = slide("", el("div", { class: "hint" }, `先按空󠇡格，再從${o.noun || "詞"}庫選出符合解釋的${o.noun || "詞語"}。${o.noun || "詞"}庫裡有用不󠇡到的${o.noun || "詞"}。`), splitBox([list], [chips]));
+    const s = slide("dbs", el("div", { class: "hint" }, `先按空󠇡格，再從${o.noun || "詞"}庫選出符合解釋的${o.noun || "詞語"}。${o.noun || "詞"}庫裡有用不󠇡到的${o.noun || "詞"}。`), splitBox([list], [chips]));
     s.onshow = () => { if (!sel) pick(rows.find(x => !x.done) || null); };
     s.reveal = () => rows.forEach(r => { r.b.innerHTML = r.it.h; r.b.classList.add("ok"); r.done = true; });
     out.push(s);
@@ -1244,10 +1244,7 @@ function comboSlide(p) {
 function tier() {
   if (FORCE_TIER) return FORCE_TIER;
   if (proj()) return "proj";
-  if (!LOCK) return load("demotier") === "base" ? "base" : "std";   /* 老師電腦示範時可切換 */
-  const s = String(load("who") || "").trim();
-  const t = CFG.tiers || {}; const v = (WHOK && t[WHOK]) || (s && t[s]) || t._default;
-  return v === "base" ? "base" : "std";
+  return "std";   /* 三年級不分層：同一󠇢條練習路線，提示多寡由「提示階梯」調整 */
 }
 /* 報讀等級：all 全部報讀；q 題目報讀、必學字不󠇡報讀；none 不󠇡報讀（老師在後台逐步關閉） */
 function ttsLevel() {
@@ -1353,6 +1350,65 @@ function frameSlide(q, frame, ref, label, checks) {
   const w = writeBox(label); const ta = w.querySelector("textarea"); ta.placeholder = frame;
   const ck = el("div", { class: "selfck only-stu" }); ck.append(el("div", { class: "hint" }, "寫完檢查："), checklist(checks || ["有用到句框", "句子󠇡有寫完", "有標點符號"]));
   const s = slide("", sayRow(stem), stem, fr, w, ck, refBox(esc(ref))); return s;
+}
+
+/* ══════════ 提示階梯（三年級鷹架）══════════
+   同一󠇢題有四階：第 4 階是目標（自己說／寫），往下每一󠇢階多一󠇢層提示。
+   老師在後台設定起始階層；學生按「給我提示」往下一󠇢階，做完可以按「挑戰下一󠇢階」往上。
+   用了提示，這一󠇢題就不󠇡算「第一次就答對」（集花少一󠇢朵）。 */
+const LADDER_NAMES = { jx: ["詞卡排句", "句框＋詞庫", "句框", "自己造句"], rq: ["選答案", "句框＋詞庫", "句框", "自己回答"] };
+function ladderStart(type) {
+  let v;
+  if (!LOCK) v = load("demoladder");
+  else { const s = String(load("who") || "").trim(); const t = CFG.ladder || {}; const o = (WHOK && t[WHOK]) || (s && t[s]) || t._default || {}; v = o[type]; }
+  v = parseInt(v, 10); return v >= 1 && v <= 4 ? v : 2;
+}
+/* 第 1 階（句子󠇡）：詞卡排句，做完回呼 */
+function ordBox(cards, label, oo = {}) {
+  const q = qid(label); const box = el("div", { class: "ord" }); const line = el("div", { class: "ordline big-line" }); const pool = el("div", { class: "bank" });
+  let seq = []; const res = el("div", { class: "pres", "aria-live": "polite" });
+  const paint = () => { line.innerHTML = seq.length ? seq.map(k => `<span class="wchip">${cards[k]}</span>`).join("") : `<span class="hint">${oo.ph || "按下面的詞卡排成句子󠇡"}</span>`; };
+  const btns = shuffle(cards.map((c, k) => k)).map(k => { const b = el("button", { type: "button", class: "chip" }, cards[k]); b.onclick = () => { if (box.classList.contains("answered")) return; seq.push(k); b.disabled = true; paint();
+      if (seq.length === cards.length) { const ok = seq.every((x, i) => cards[x] === cards[i]); logAns(q, ok, seq.map(x => cards[x]).join(""));
+        if (ok) { box.classList.add("answered"); res.innerHTML = `<span class="okmsg">√ 排對了！${oo.ph ? "" : "唸唸看。"}</span>`; if (!oo.ph) res.append(sayBtn(cards.join(""), "唸句子󠇡")); }
+        else { res.innerHTML = '<span class="nomsg">順序不󠇡太對，按「重排」再試一󠇡次。</span>'; } } }; return b; });
+  btns.forEach(b => pool.append(b));
+  const back = el("button", { type: "button", class: "btn" }, "退一󠇢張"); back.onclick = () => { if (box.classList.contains("answered") || !seq.length) return; const k = seq.pop(); btns.find(b => b.textContent === cards[k] && b.disabled).disabled = false; res.innerHTML = ""; paint(); };
+  const redo = el("button", { type: "button", class: "btn" }, "重排"); redo.onclick = () => { if (box.classList.contains("answered")) return; seq = []; btns.forEach(b => b.disabled = false); res.innerHTML = ""; paint(); };
+  paint(); box.append(el("div", { class: "inst" }, oo.inst || "照順序按詞卡，排成一󠇡句話。"), line, pool, tools(back, redo), res);
+  box.isDone = () => box.classList.contains("answered"); return box;
+}
+/* 第 2 階：句框＋詞庫 */
+function fillBox(fill, bank, label) {
+  const ctx = {}; const line = fillLine(bparts(fill), [], ctx, label); const stem = el("div", { class: "big-line" }); stem.append(line);
+  const box = el("div", { class: "lfill" }); box.append(el("div", { class: "inst" }, "按空󠇡格，再按下面的詞，把句子󠇡填完整。"), stem, bankBox(shuffle(bank).map(b => ({ t: b, h: b })), ctx));
+  box.onshow = () => { ctx.slideBlanks = line.blanks; const b = line.blanks.find(x => !x.classList.contains("ok")); if (b) b.click(); };
+  box.isDone = () => line.blanks.every(b => b.classList.contains("ok")); box.reveal = () => revealBlanks(line.blanks); return box;
+}
+/* 第 3、4 階：用說的／寫的／打字作答，老師再確認 */
+function openBox(inst, frame, kws, label) {
+  const p = produce({ label, check: t => { const miss = (kws || []).filter(k => !t.includes(k)); return miss.length ? { st: "no", msg: `要用到「${miss.join("」「")}」` } : { st: "check", msg: "老師會再看看" }; } });
+  const box = el("div", { class: "lopen" }); box.append(el("div", { class: "inst" }, inst)); if (frame) box.append(el("div", { class: "frame big-line" }, `<span class="flab">句框</span>${esc(frame)}`)); box.append(p);
+  box.isDone = () => p.classList.contains("answered"); return box;
+}
+/* 階梯外框：makers[0..3] 對應第 1～4 階 */
+function ladderSlide(o) {
+  const names = LADDER_NAMES[o.type]; const q = qid(`${o.label}（提示階梯）`); let lv = ladderStart(o.type), used = false, doneAt = 0;
+  const steps = el("div", { class: "lsteps", "aria-label": "提示階層" }); const area = el("div", { class: "larea" }); const res = el("div", { class: "lres", "aria-live": "polite" });
+  const down = el("button", { type: "button", class: "btn lhint" }, "💡 給我提示"); const up = el("button", { type: "button", class: "btn lup" }, "挑戰下一󠇢階 ⬆");
+  let cur = null; const made = {};
+  const paint = () => { steps.innerHTML = ""; names.forEach((n, k) => steps.append(el("span", { class: "lstep" + (k + 1 === lv ? " on" : "") + (k + 1 < lv ? " below" : "") }, `${k + 1} ${n}`))); down.disabled = lv <= 1; up.hidden = !(cur && cur.isDone() && lv < 4); };
+  const show = () => { area.innerHTML = ""; res.innerHTML = ""; cur = made[lv] || (made[lv] = o.makers[lv - 1]()); area.append(cur); if (cur.onshow) requestAnimationFrame(cur.onshow); paint(); };
+  down.onclick = () => { if (lv <= 1) return; if (!used) { used = true; logAns(q, false, `用了提示（從第 ${lv} 階往下）`); } lv--; show(); };
+  up.onclick = () => { lv++; show(); };
+  area.addEventListener("click", () => setTimeout(check, 50)); area.addEventListener("keyup", () => setTimeout(check, 50));
+  function check() { if (!cur || !cur.isDone()) return; if (lv > doneAt) { doneAt = lv; logText(qid(`${o.label}（完成的階層）`), `第 ${lv} 階：${names[lv - 1]}`); if (!used && !REC[recKey()]?.[q]) logAns(q, true, `第 ${lv} 階完成，沒有用提示`); }
+    res.innerHTML = `<span class="okmsg">√ 完成第 ${lv} 階「${names[lv - 1]}」</span>`; paint(); }
+  const head = el("div", { class: "lhead" }); head.append(steps, el("span", { class: "lbtns" }, ""), ""); head.querySelector(".lbtns").append(down, up);
+  const s = slide("lad", o.kick ? kick(o.kick) : null, ...[].concat(o.stem || []), head, area, res);
+  s.onshow = () => { if (!cur) show(); else if (cur.onshow) cur.onshow(); };
+  s.reveal = () => { if (o.ref) res.innerHTML = `<div class="refcard">參考答案：${esc(o.ref)}</div>`; };
+  return s;
 }
 /* 是非／對錯判斷 */
 function ynSlide(stemHtml, ans, label, labels = ["用得󠇡對", "用得󠇡不󠇡對"]) {
@@ -1541,13 +1597,19 @@ function iconLegend() { return el("span", { class: "legend ui" }, `${ICON_B}聽�
 
 /* ── 結構：總說／分說／總結 ── */
 function structSlides() {
-  const segs = ["總說", "分說", "總結"];
+  const segs = [...new Set(L.struct.map(x => x.seg))];
   if (proj()) {
     const g = el("div", { class: "tree" });
-    segs.forEach(sg => { const ps = L.struct.filter(x => x.seg === sg).map(x => x.p); const c = el("div", { class: "tnode" }); c.append(peekBox(`<b>${sg}</b>`, "tseg"), el("div", { class: "tps" }, `第 ${ps.join("、")} 段`), el("div", { class: "hint" }, L.structNote[sg])); g.append(c); });
-    return [slide("", kick("課文結構"), el("div", { class: "hint" }, "這一󠇡課是說明文，用「總說、分說、總結」的方式寫。"), g)];
+    segs.forEach(sg => { const ps = L.struct.filter(x => x.seg === sg).map(x => x.p); const c = el("div", { class: "tnode" }); c.append(peekBox(`<b>${sg}</b>`, "tseg"), el("div", { class: "tps" }, ps.length > 2 ? `第 ${ps[0]} 到第 ${ps[ps.length - 1]} 段` : `第 ${ps.join("、")} 段`), el("div", { class: "hint" }, L.structNote[sg])); g.append(c); });
+    return [slide("", kick("課文結構"), el("div", { class: "hint" }, L.structIntro || ""), g)];
   }
-  return L.struct.map(x => { const r = pickRow(segs, segs.indexOf(x.seg), `課文結構：第${x.p}段`, "ab"); const stem = el("div", { class: "stem" }, `第 ${x.p} 段是「總說」、「分說」，還是「總結」？`); const s = slide("", sayRow(stem), stem, el("details", { class: "pqpara" }, `<summary>看第 ${x.p} 段課文</summary><p class="para">${paraHTML(x.p - 1)}</p>`), el("div", { class: "ynrow" }, "")); s.querySelector(".ynrow").append(r); s.reveal = r.reveal; return s; });
+  /* 學生練習：跟著「起因、經過、收穫」三部分讀懂結構 */
+  return L.structQ.map((x, i) => {
+    const lb = `課文結構${i + 1}：${x.seg}`; const tag = kick(x.seg);
+    const para = x.p.length ? el("details", { class: "pqpara" }, `<summary>看第 ${x.p.join("、")} 段課文</summary>${x.p.map(n => `<p class="para">${paraHTML(n - 1)}</p>`).join("")}`) : null;
+    if (x.type === "order") { const stem = el("div", { class: "stem" }, mk(x.q)); const box = ordBox(x.cards, lb, { inst: "依照作者走的順序，一󠇢張一󠇢張按。", ph: "第一站 → 第二站 → 第三站 → 第四站" }); const s = slide("", tag, sayRow(stem), stem, box, para); s.reveal = () => {}; return s; }
+    const c = choiceQ(mk(x.q), x.opts, x.ans, lb); const s = slide("", tag, sayRow(c), c, para); s.reveal = c.reveal; return s;
+  });
 }
 function peekBox(html, cls) { const b = el("button", { type: "button", class: "fpk " + (cls || "") }, `<span class="fpk-c">${html}</span><span class="fpk-h">按一󠇡下顯示</span>`); b.onclick = () => b.classList.toggle("open"); return b; }
 /* 三座塔表格 */
@@ -1606,13 +1668,15 @@ const VIEWS = {
       ];
       return deck(secs, { submit: true });
     }
-    const R = L.readq.map((x, i) => x.type === "choice" ? (() => { const c = choiceQ(mk(x.q), x.opts, x.ans, `理解與推論${i + 1}`); const s = slide("", sayRow(c), c); s.reveal = c.reveal; return s; })() : frameSlide(x.q, x.frame, x.ref, `理解與推論${i + 1}：${x.q}`));
+    const R = L.readq.map((x, i) => x.type === "choice" ? (() => { const c = choiceQ(mk(x.q), x.opts, x.ans, `理解與推論${i + 1}`); const s = slide("", sayRow(c), c); s.reveal = c.reveal; return s; })() : (x.opts ? (() => { const lb = `理解與推論${i + 1}：${x.q}`; const stem = el("div", { class: "stem" }, mk(x.q)); return ladderSlide({ type: "rq", label: lb, stem: [sayRow(stem), stem], ref: x.ref,
+        makers: [() => { const c = choiceQ("", x.opts, x.ans, `${lb}：選答案`); c.isDone = () => c.classList.contains("answered") || !!c.querySelector(".ok"); return c; },
+          () => fillBox(x.fill, x.bank, `${lb}：句框＋詞庫`), () => openBox("用句框說或寫出答案。", x.frame, [], `${lb}：句框`), () => openBox("用自己的話說或寫出答案。", "", [], `${lb}：自己回答`)] }); })() : frameSlide(x.q, x.frame, x.ref, `理解與推論${i + 1}：${x.q}`)));
     const secs = [
       { name: "分段讀", hint: "按詞語可以看意思󠇢。", slides: [...Array(n).keys()].map(i => paraSlide(i)) },
-      { name: "課文結構", hint: "想一󠇢想每一󠇡段在做什麼。", slides: structSlides() },
+      { name: "課文結構", hint: "這一󠇡課分成起因、經過、收穫三部分。", slides: structSlides() },
       { name: "段落大意", hint: "先按空󠇡格，再按詞語。詞庫裡有用不󠇡到的詞。", slides: bankSlides(L.summary.map(x => x.t), L.sumBank, "段落大意", { kick: L.summary.map(x => x.label) }) },
       { name: "參觀路線", hint: "按一󠇡下每一󠇡站，在跳出來的視窗裡填空󠇡。", slides: [towerSlide()] },
-      { name: "理解與推論", hint: "用句框回答，寫完檢查一󠇡次。", slides: R },
+      { name: "理解與推論", hint: "先自己試試看；需要時按「給我提示」。", slides: R },
       { name: "完成", slides: [finishSlide()] },
     ];
     return deck(secs, { submit: true });
@@ -1743,6 +1807,26 @@ const VIEWS = {
     const qid2 = qid("② 仿寫：只換情況");
     const st2 = el("div", { class: "stem big-line" }); st2.append(l2);
     const s2 = slide("", kick("② 仿寫：只換「情況」"), el("div", { class: "hint" }, "選一󠇡個󠇡情況放進空󠇡格，唸唸看。"), blocks(["", J.demo[1], J.demo[2]]), st2, chips2);
+    if (T === "std" && J.ladder) {
+      /* 學生練習：看示範之後，每一󠇢題都用提示階梯（詞卡排句 → 句框＋詞庫 → 句框 → 自己造句） */
+      const jl = (P, k, i, pat) => ladderSlide({ type: "jx", label: `${pat} 第 ${i + 1} 題`, kick: `${pat}　第 ${i + 1} 題`, ref: P.cards.join(""), stem: P.pic ? [el("div", { class: "ladpic" }, pic(P.pic, "看圖說說看")), el("div", { class: "hint", style: "text-align:center" }, "看圖，說說看圖裡有什麼。")] : null,
+        makers: [() => ordBox(P.cards, `${pat}${i + 1}：詞卡排句`), () => fillBox(P.fill, P.bank, `${pat}${i + 1}：句框＋詞庫`),
+          () => openBox(`照著句框，用「${pat}」說或寫一󠇡句。`, k.frame3, k.kws, `${pat}${i + 1}：句框`), () => openBox(`用「${pat}」自己造一󠇡句。`, "", k.kws, `${pat}${i + 1}：自己造句`)] });
+      const B = L.bd;
+      const bd1 = slide("", kick("看示範"), el("div", { class: "stem big-line" }, B.lkws.reduce((t, k) => t.split(k).join(`\u0001${k}\u0002`), B.demo).replace(/\u0001/g, '<b class="kw">').replace(/\u0002/g, "</b>")), el("div", { class: "hint" }, B.hint), sayBtn(B.demo, "唸句子󠇡"));
+      const secs = [{ name: J.pat, hint: "先看示範，再一󠇢題一󠇢題練習。需要時按「給我提示」。", slides: [s1, ...J.ladder.map((P, i) => jl(P, J, i, J.pat))] },
+        { name: B.pat, hint: "看示範 → 想一󠇢想 → 看圖練習。需要時按「給我提示」。", slides: (() => {
+          /* ① 看示範：課文句子󠇡分成四塊上色 */
+          const C4 = ["b1", "b2", "b2", "b3"]; const blk = el("div", { class: "blocks" }); B.demoParts.forEach((t, k) => blk.append(el("span", { class: "blk " + C4[k] }, t))); blk.append(el("span", { class: "blk" }, "。"));
+          const lg = el("div", { class: "blegend" }); B.blocks.forEach((t, k) => k !== 2 && lg.append(el("span", { class: "blk " + C4[k] }, t)));
+          const b1 = slide("", kick("① 看示範"), el("div", { class: "stem" }, "課文裡的句子󠇡："), blk, lg, el("div", { class: "hint big-line" }, B.explain), sayBtn(B.demoParts.join("") + "。", "唸句子󠇡"));
+          /* ② 想一󠇢想：哪一󠇡句用對了 */
+          const c = choiceQ(mk(B.think.q), B.think.opts, B.think.ans, `${B.pat}：想一󠇢想`); const b2 = slide("", kick("② 想一󠇢想"), sayRow(c), c, refBox(esc(B.think.why))); b2.reveal = c.reveal;
+          return [b1, b2, ...B.ladder.map((P, i) => jl(P, { frame3: B.frame3, kws: B.lkws }, i, B.pat))];
+        })() },
+        { name: "完成", slides: [finishSlide()] }];
+      return deck(secs, { submit: true });
+    }
     /* ③ 替換：換情況和做什麼 */
     const s3 = swapSlide(J, T);
     const slides = [s1, s2, s3];
@@ -2585,16 +2669,16 @@ function tabRec(body) {
 }
 function tabRoster(body) {
   const g = curGroup(); const M = ["say", "write", "type"];
-  const c = card(`學生名單與作答方式：${g.name}`, "", "名字要和學生在網站上輸入的姓名完全一󠇡樣，設定才會套用（建議只用名字或暱稱）。「層級」決定學生看到標準層或基礎層的練習，學生畫面不󠇡會顯示層級名稱。「語音報讀」可以逐步關閉：選「題目報讀，必學字不󠇡報讀」時，題目照常報讀，橘色的必學字會跳過，讓學生自己讀；選「不󠇡報讀」就不出現喇叭按鈕。名單會加密保存，只有你看得󠇡到；儲存後也會變成這台電腦上課時的抽籤名單。");
+  const c = card(`學生名單與作答方式：${g.name}`, "", "名字要和學生在網站上輸入的姓名完全一󠇡樣，設定才會套用（建議只用名字或暱稱）。「提示起點」決定句子󠇡、閱讀推論題一󠇢開始給多少提示：1 最多（詞卡、選項），4 是自己完成；學生做不出來可以按「給我提示」往下一󠇢階，做完也可以挑戰上一󠇢階。「語音報讀」可以逐步關閉：選「題目報讀，必學字不󠇡報讀」時，題目照常報讀，橘色的必學字會跳過，讓學生自己讀；選「不󠇡報讀」就不出現喇叭按鈕。名單會加密保存，只有你看得󠇡到；儲存後也會變成這台電腦上課時的抽籤名單。");
   const msg = el("p", { class: "hint", role: "status" }, "讀取中……"); c.append(msg); body.append(c);
   (async () => {
     const conf = (await fetchConfig(g.code)) || {}; let names = [];
     if (conf.roster) { try { names = await openSealed(TD.me.key, conf.roster); } catch (e) {} }
     const def = conf.default || M;
     const keys = {}; for (const n of names) keys[n] = await nameKey(g.code, n);
-    const tb = el("table", { class: "ttable" }); tb.innerHTML = "<thead><tr><th>學生</th><th>口說</th><th>寫字</th><th>打字</th><th title=\"題目、選項旁的喇叭按鈕\">語音報讀</th><th title=\"學生畫面不󠇡會出現層級名稱\">層級</th><th></th></tr></thead>";
+    const tb = el("table", { class: "ttable" }); tb.innerHTML = "<thead><tr><th>學生</th><th>口說</th><th>寫字</th><th>打字</th><th title=\"題目、選項旁的喇叭按鈕\">語音報讀</th><th title=\"1 提示最多，4 自己完成；學生可以按「給我提示」往下一󠇢階\">提示起點</th><th></th></tr></thead>";
     const valOf = cbs => [...M.filter((mm, k) => cbs[k].checked), ...(cbs.tts.value === "none" ? ["nott"] : [])];
-    const TIERS = conf.tiers || {}, TTSL = conf.ttsLv || {};
+    const LAD = conf.ladder || {}, TTSL = conf.ttsLv || {};
     const tbody = el("tbody"); tb.append(tbody); const rows = [];
     const mkRow = (name, val, fixed) => {
       const tr = el("tr"); const td0 = el("td"); let ip = null;
@@ -2604,8 +2688,11 @@ function tabRoster(body) {
       const key = fixed ? "_default" : keys[name];
       const ts = el("select", { class: "tsel sm", "aria-label": "語音報讀" }); [["all", "全部報讀"], ["q", "題目報讀，必學字不󠇡報讀"], ["none", "不󠇡報讀"]].forEach(([v, t]) => ts.append(el("option", { value: v }, t)));
       ts.value = val.includes("nott") ? "none" : (TTSL[key] || (fixed ? "all" : TTSL._default || "all")); const td4 = el("td"); td4.append(ts); tr.append(td4); cbs.tts = ts;
-      const tl = el("select", { class: "tsel sm", "aria-label": "層級" }); [["std", "標準層"], ["base", "基礎層"]].forEach(([v, t]) => tl.append(el("option", { value: v }, t)));
-      tl.value = TIERS[key] || (fixed ? "std" : TIERS._default || "std"); const td5 = el("td"); td5.append(tl); tr.append(td5); cbs.tier = tl;
+      /* 提示起點：句子󠇡、閱讀推論各從第幾階開始（1 提示最多，4 自己完成） */
+      const LV = [["1", "1 最多提示"], ["2", "2"], ["3", "3"], ["4", "4 自己完成"]];
+      const mkL = (t, lab) => { const sl = el("select", { class: "tsel sm", "aria-label": lab, title: lab }); LV.forEach(([v, n]) => sl.append(el("option", { value: v }, n)));
+        const o = LAD[key] || (fixed ? {} : LAD._default || {}); sl.value = String(o[t] || (LAD._default || {})[t] || 2); return sl; };
+      const lj = mkL("jx", "句子󠇡提示起點"), lr = mkL("rq", "閱讀推論提示起點"); const td5 = el("td", { class: "ladtd" }); td5.append(el("span", { class: "hint" }, "句子󠇡"), lj, el("span", { class: "hint" }, "閱讀"), lr); tr.append(td5); cbs.lad = { jx: lj, rq: lr };
       const td9 = el("td"); if (!fixed) { const x = el("button", { type: "button", class: "btn", title: "刪除這一󠇡列" }, "✕"); x.onclick = () => { tr.remove(); rows.splice(rows.indexOf(r), 1); }; td9.append(x); } tr.append(td9);
       const r = { ip, cbs }; rows.push(r); return tr;
     };
@@ -2616,13 +2703,13 @@ function tabRoster(body) {
     const save = el("button", { type: "button", class: "btn solid" }, "儲存");
     save.onclick = async () => {
       const d0 = valOf(rows[0].cbs); if (!d0.filter(x => x !== "nott").length) { msg.textContent = "預設至少要勾一󠇢種作答方式。"; return; }
-      const list = [], students = {}, tiers = { _default: rows[0].cbs.tier.value }, ttsLv = { _default: rows[0].cbs.tts.value };
+      const lv = r => ({ jx: +r.cbs.lad.jx.value, rq: +r.cbs.lad.rq.value }); const list = [], students = {}, ladder = { _default: lv(rows[0]) }, ttsLv = { _default: rows[0].cbs.tts.value };
       for (const r of rows.slice(1)) { const n = r.ip.value.trim(); if (!n || list.includes(n) || list.length >= LOT_MAX) continue; list.push(n); const k = await nameKey(g.code, n); const v = valOf(r.cbs); if (v.filter(x => x !== "nott").length && v.join() !== d0.join()) students[k] = v;
-        if (r.cbs.tier.value !== tiers._default) tiers[k] = r.cbs.tier.value; if (r.cbs.tts.value !== ttsLv._default) ttsLv[k] = r.cbs.tts.value; }
+        { const o = lv(r); if (o.jx !== ladder._default.jx || o.rq !== ladder._default.rq) ladder[k] = o; } if (r.cbs.tts.value !== ttsLv._default) ttsLv[k] = r.cbs.tts.value; }
       save.disabled = true; msg.textContent = "加密並儲存中……";
       try {
         const latest = (await fetchConfig(g.code)) || {};
-        const j = await apiCall({ action: "saveconfig", ...cred(), c: g.code, config: Object.assign({}, latest, { default: d0, students, tiers, ttsLv, roster: await sealFor(TD.me.pub, list), tasks: latest.tasks || [] }) });
+        const j = await apiCall({ action: "saveconfig", ...cred(), c: g.code, config: Object.assign({}, latest, { default: d0, students, ladder, ttsLv, roster: await sealFor(TD.me.pub, list), tasks: latest.tasks || [] }) });
         if (!j.ok) { msg.textContent = errMsg(j); save.disabled = false; return; }
         setLotList(g.name, list);
         msg.textContent = `已儲存 ${list.length} 位學生。學生平板約 15 秒內會自動套用；這台電腦的抽籤名單「${g.name}」也更新了。`;
