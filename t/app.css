@@ -1007,6 +1007,8 @@ html.proj .must { color: #ffb347; background: transparent; }
 .wrow { display: flex; gap: 1.2em; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
 .model { display: flex; align-items: center; justify-content: center; width: 4.5em; height: 4.5em; border: 2px dashed var(--line); border-radius: 12px; background: #fff; }
 .mch { font-size: 3.6em; line-height: 1; }
+.model.mcolor { width: auto; height: auto; padding: 6px; border-style: solid; }
+.model.mcolor img { display: block; width: clamp(150px, 30vh, 240px); height: clamp(150px, 30vh, 240px); object-fit: contain; }
 .ipad { display: grid; justify-items: center; gap: 6px; } .ipad canvas { border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 .ipad.pdone canvas { outline: 3px solid var(--ok); }
 .cands { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; font-family: var(--ui); }

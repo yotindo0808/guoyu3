@@ -66,6 +66,8 @@ function logAns(q, ok, val) {
   const e = r[q.id] || (r[q.id] = { label: q.label, tries: 0, first: null, last: "", sec: curSec() });
   e.tries++; if (e.first === null) e.first = ok; e.last = val; e.done = e.done || ok; beep(ok);
 }
+/* 用了提示：這題還沒作答過，就記成「不󠇡是第一次答對」，集花時不󠇡算 */
+function logHint(q) { if (proj()) return; const r = REC[recKey()] || (REC[recKey()] = {}); const e = r[q.id] || (r[q.id] = { label: q.label, tries: 0, first: null, last: "", sec: curSec() }); if (e.first === null) e.first = false; e.hint = true; }
 function logText(q, val) { if (proj()) return; const r = REC[recKey()] || (REC[recKey()] = {}); r[q.id] = { label: q.label, text: val, sec: curSec() }; }
 /* ── 集花（三年級）：每個󠇡分頁做完給 1～3 朵；不󠇡用提示、第一次就答對達 9 成 3 朵，6 成 2 朵，其餘 1 朵。
    花只看學生在自己的層級裡做得如何；每人每課每分頁留最好的一󠇡次，存在這台裝置。 ── */
@@ -1069,9 +1071,11 @@ function writeTask(c, onDone, o = {}) {
   const size = o.size || Math.max(160, Math.min(240, Math.floor(innerHeight * .27)));
   const cv = el("canvas", { width: String(size * 2), height: String(size * 2), "aria-label": "寫字格，用手指或觸控筆寫" }); cv.style.width = cv.style.height = size + "px"; cv.style.touchAction = "none";
   const g = cv.getContext("2d"); g.scale(2, 2); const sk = document.createElement("canvas"); sk.width = sk.height = size; const sg = sk.getContext("2d");
-  let guide = false, ink = [], stroke = null, t0 = 0, done = false;
+  let hint = 0, ink = [], stroke = null, t0 = 0, done = false;
   const base = () => { g.clearRect(0, 0, size, size); g.fillStyle = "#fff"; g.fillRect(0, 0, size, size); g.strokeStyle = "#e3b9b2"; g.lineWidth = 1; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(size / 2, 0); g.lineTo(size / 2, size); g.moveTo(0, size / 2); g.lineTo(size, size / 2); g.moveTo(0, 0); g.lineTo(size, size); g.moveTo(size, 0); g.lineTo(0, size); g.stroke(); g.setLineDash([]); g.strokeStyle = "#c97a6d"; g.lineWidth = 2; g.strokeRect(1, 1, size - 2, size - 2);
-    if (guide) { g.fillStyle = "#d6dcda"; g.font = `${size * .82}px "L${cur.lesson}", "IansuiUI", serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(c.c, size / 2, size / 2 + size * .03); } };
+    /* 提示：第一次只露出一󠇡半（左右結構露左半，上下結構露上半），第二次露出整個字 */
+    if (hint) { g.save(); g.beginPath(); if (hint === 1) { if (c.st === "上下" || c.st === "上中下") g.rect(0, 0, size, size * .5); else g.rect(0, 0, size * .5, size); } else g.rect(0, 0, size, size); g.clip();
+      g.fillStyle = "#d6dcda"; g.font = `${size * .82}px "L${cur.lesson}", "IansuiUI", serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(c.c, size / 2, size / 2 + size * .03); g.restore(); } };
   const res = el("div", { class: "pres", "aria-live": "polite" });
   const clearAll = () => { ink = []; t0 = 0; sg.clearRect(0, 0, size, size); base(); };
   base();
@@ -1087,14 +1091,13 @@ function writeTask(c, onDone, o = {}) {
     let ok = null, how = "";
     try { const list = await hwRecognize(ink, size, size); ok = list.slice(0, 5).includes(c.c); how = ok ? "" : (list[0] ? `看起來像「${list[0]}」` : ""); }
     catch (e) { const o = inkOverlap(c.c, sg, size); ok = o.cover >= .55 && o.prec >= .7; how = ok ? "" : (o.cover < .55 ? "有些筆畫好像沒寫到" : "有些筆畫寫到格子󠇡外面了"); }
-    if (guide) { res.innerHTML = ok ? '<span class="okmsg">描對了！</span>關掉範字，自己再寫一󠇡次。' : `<span class="nomsg">還不󠇡太對${how ? "：" + how : ""}。</span>擦掉再描一󠇡次。`; return; }
     logAns(q, ok, ok ? c.c : how || "寫錯");
     if (ok) { done = true; box.classList.add("pdone"); res.innerHTML = '<span class="okmsg">√ 寫對了！</span>'; onDone(); }
-    else { wrong++; res.innerHTML = `<span class="nomsg">還不󠇡太對${how ? "：" + how : ""}。</span>擦掉再寫一󠇡次。` + (wrong >= 2 ? '<div class="tipch">可以按「看範字」描一󠇡次，再自己寫。</div>' : ""); clearAll(); }
+    else { wrong++; res.innerHTML = `<span class="nomsg">還不󠇡太對${how ? "：" + how : ""}。</span>擦掉再寫一󠇡次。` + (wrong >= 2 && hint < 2 ? '<div class="tipch">可以按「提示」，看看字的一󠇡部分。</div>' : ""); clearAll(); }
   };
   const chk = el("button", { type: "button", class: "btn solid" }, "檢查"); chk.onclick = check;
   const clr = el("button", { type: "button", class: "btn" }, "擦掉"); clr.onclick = () => { clearAll(); res.innerHTML = ""; };
-  const gd = el("button", { type: "button", class: "btn" }, "看範字"); gd.onclick = () => { guide = !guide; gd.textContent = guide ? "關掉範字" : "看範字"; clearAll(); res.innerHTML = guide ? '<span class="hint">描完後要關掉範字，自己寫一󠇡次才算完成。</span>' : ""; };
+  const gd = el("button", { type: "button", class: "btn" }, "提示"); gd.onclick = () => { if (done) return; hint = Math.min(2, hint + 1); logHint(q); gd.textContent = hint === 1 ? "再一󠇡個󠇡提示" : "提示"; gd.disabled = hint >= 2; clearAll(); res.innerHTML = '<span class="hint">照著淡淡的字寫，再按「檢查」。</span>'; };
   box.append(el("div", { class: "phead" }, "① 寫國字"), cv, tools(chk, clr, gd), res); return box;
 }
 const ZY_KEYS = [["ㄅ", "ㄆ", "ㄇ", "ㄈ", "ㄉ", "ㄊ", "ㄋ", "ㄌ"], ["ㄍ", "ㄎ", "ㄏ", "ㄐ", "ㄑ", "ㄒ", "ㄓ", "ㄔ"], ["ㄕ", "ㄖ", "ㄗ", "ㄘ", "ㄙ", "ㄧ", "ㄨ", "ㄩ"], ["ㄚ", "ㄛ", "ㄜ", "ㄝ", "ㄞ", "ㄟ", "ㄠ", "ㄡ"], ["ㄢ", "ㄣ", "ㄤ", "ㄥ", "ㄦ"]];
@@ -1482,10 +1485,11 @@ function mustSlides(c) {
 }
 function traceSlide(c, head) {
   const q4 = qid(`描寫：${c.c}`); const r4 = el("div");
-  const p4 = inkPad({ ch: c.c, st: c.st, hints: true, onPick: (ch, h) => { const ok = ch === c.c; logAns(q4, ok, ch + (h ? `（用了${h}個提示）` : "")); if (ok) { p4.lock(); p4.res.innerHTML = '<span class="okmsg">√ 寫對了！</span>'; r4.classList.add("answered"); } else p4.res.innerHTML = `<span class="nomsg">這是「${nz(ch)}」，不󠇡是我們要寫的字。</span>擦掉再寫一󠇡次，可以按「提示」。`; } });
-  const model = el("div", { class: "model" }, `<span class="mch nozy">${c.c}</span>`);
+  /* 旁邊已經有範字可以看，寫字格就不󠇡再給提示；範字用部件分色的彩色生字（課文解鎖後才有，沒有時用一󠇢般國字） */
+  const p4 = inkPad({ ch: c.c, st: c.st, hints: false, onPick: (ch, h) => { const ok = ch === c.c; logAns(q4, ok, ch + (h ? `（用了${h}個提示）` : "")); if (ok) { p4.lock(); p4.res.innerHTML = '<span class="okmsg">√ 寫對了！</span>'; r4.classList.add("answered"); } else p4.res.innerHTML = `<span class="nomsg">這是「${nz(ch)}」，不󠇡是我們要寫的字。</span>看看左邊的字，擦掉再寫一󠇡次。`; } });
+  const model = el("div", { class: "model" + (c.img ? " mcolor" : "") }, c.img ? `<img src="${c.img}" alt="${c.c}（部件分色）">` : `<span class="mch nozy">${c.c}</span>`);
   const w4 = el("div", { class: "wrow" }); w4.append(model, p4); r4.append(w4);
-  const s4 = slide("", head, el("div", { class: "inst" }, "看左邊的字，在格子󠇡裡寫一󠇡次。需要時按「提示」。"), r4); s4.dataset.nofit = "1";
+  const s4 = slide("", head, el("div", { class: "inst" }, "看左邊的字，在格子󠇡裡寫一󠇡次。"), r4); s4.dataset.nofit = "1";
   return s4;
 }
 function wordWriteSlide(c, word, wh, label, head) {
@@ -1822,7 +1826,7 @@ const VIEWS = {
       const g = el("div", { class: "zcgrid" }); const rt = el("div", { class: "zcr" }); rt.append(p); g.append(lf, rt);
       const sl = slide("zcs", g); sl.dataset.nofit = "1"; return sl; });
     const tr = L.cards.map(c => traceSlide(c, el("div", { class: "mhead" }, '<span class="mstep">寫寫看</span>')));
-    return deck([{ group: "生字", name: "寫寫看", hint: "照著左邊的字寫一󠇡次，寫完會辨認你寫的字。", slides: tr }, { name: "生字練習", hint: "每個󠇡生字要完成三件事：寫國字、拼注音、選部首。", slides: ps }, { name: "自己造詞", slides: zc }, { name: "完成", slides: [finishSlide()] }], { submit: true });
+    return deck([{ group: "生字", name: "寫寫看", hint: "看左邊的彩色生字，在格子󠇡裡寫一󠇡次。", slides: tr }, { name: "生字練習", hint: "每個󠇡生字要完成三件事：寫國字、拼注音、選部首。", slides: ps }, { name: "自己造詞", slides: zc }, { name: "完成", slides: [finishSlide()] }], { submit: true });
   },
 
   words() {

@@ -65,6 +65,8 @@ function logAns(q, ok, val) {
   const e = r[q.id] || (r[q.id] = { label: q.label, tries: 0, first: null, last: "", sec: curSec() });
   e.tries++; if (e.first === null) e.first = ok; e.last = val; e.done = e.done || ok; beep(ok);
 }
+/* 用了提示：這題還沒作答過，就記成「不是第一次答對」，集花時不算 */
+function logHint(q) { if (proj()) return; const r = REC[recKey()] || (REC[recKey()] = {}); const e = r[q.id] || (r[q.id] = { label: q.label, tries: 0, first: null, last: "", sec: curSec() }); if (e.first === null) e.first = false; e.hint = true; }
 function logText(q, val) { if (proj()) return; const r = REC[recKey()] || (REC[recKey()] = {}); r[q.id] = { label: q.label, text: val, sec: curSec() }; }
 /* ── 集花（三年級）：每個分頁做完給 1～3 朵；不用提示、第一次就答對達 9 成 3 朵，6 成 2 朵，其餘 1 朵。
    花只看學生在自己的層級裡做得如何；每人每課每分頁留最好的一次，存在這台裝置。 ── */
@@ -1068,9 +1070,11 @@ function writeTask(c, onDone, o = {}) {
   const size = o.size || Math.max(160, Math.min(240, Math.floor(innerHeight * .27)));
   const cv = el("canvas", { width: String(size * 2), height: String(size * 2), "aria-label": "寫字格，用手指或觸控筆寫" }); cv.style.width = cv.style.height = size + "px"; cv.style.touchAction = "none";
   const g = cv.getContext("2d"); g.scale(2, 2); const sk = document.createElement("canvas"); sk.width = sk.height = size; const sg = sk.getContext("2d");
-  let guide = false, ink = [], stroke = null, t0 = 0, done = false;
+  let hint = 0, ink = [], stroke = null, t0 = 0, done = false;
   const base = () => { g.clearRect(0, 0, size, size); g.fillStyle = "#fff"; g.fillRect(0, 0, size, size); g.strokeStyle = "#e3b9b2"; g.lineWidth = 1; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(size / 2, 0); g.lineTo(size / 2, size); g.moveTo(0, size / 2); g.lineTo(size, size / 2); g.moveTo(0, 0); g.lineTo(size, size); g.moveTo(size, 0); g.lineTo(0, size); g.stroke(); g.setLineDash([]); g.strokeStyle = "#c97a6d"; g.lineWidth = 2; g.strokeRect(1, 1, size - 2, size - 2);
-    if (guide) { g.fillStyle = "#d6dcda"; g.font = `${size * .82}px "L${cur.lesson}", "IansuiUI", serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(c.c, size / 2, size / 2 + size * .03); } };
+    /* 提示：第一次只露出一半（左右結構露左半，上下結構露上半），第二次露出整個字 */
+    if (hint) { g.save(); g.beginPath(); if (hint === 1) { if (c.st === "上下" || c.st === "上中下") g.rect(0, 0, size, size * .5); else g.rect(0, 0, size * .5, size); } else g.rect(0, 0, size, size); g.clip();
+      g.fillStyle = "#d6dcda"; g.font = `${size * .82}px "L${cur.lesson}", "IansuiUI", serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(c.c, size / 2, size / 2 + size * .03); g.restore(); } };
   const res = el("div", { class: "pres", "aria-live": "polite" });
   const clearAll = () => { ink = []; t0 = 0; sg.clearRect(0, 0, size, size); base(); };
   base();
@@ -1086,14 +1090,13 @@ function writeTask(c, onDone, o = {}) {
     let ok = null, how = "";
     try { const list = await hwRecognize(ink, size, size); ok = list.slice(0, 5).includes(c.c); how = ok ? "" : (list[0] ? `看起來像「${list[0]}」` : ""); }
     catch (e) { const o = inkOverlap(c.c, sg, size); ok = o.cover >= .55 && o.prec >= .7; how = ok ? "" : (o.cover < .55 ? "有些筆畫好像沒寫到" : "有些筆畫寫到格子外面了"); }
-    if (guide) { res.innerHTML = ok ? '<span class="okmsg">描對了！</span>關掉範字，自己再寫一次。' : `<span class="nomsg">還不太對${how ? "：" + how : ""}。</span>擦掉再描一次。`; return; }
     logAns(q, ok, ok ? c.c : how || "寫錯");
     if (ok) { done = true; box.classList.add("pdone"); res.innerHTML = '<span class="okmsg">√ 寫對了！</span>'; onDone(); }
-    else { wrong++; res.innerHTML = `<span class="nomsg">還不太對${how ? "：" + how : ""}。</span>擦掉再寫一次。` + (wrong >= 2 ? '<div class="tipch">可以按「看範字」描一次，再自己寫。</div>' : ""); clearAll(); }
+    else { wrong++; res.innerHTML = `<span class="nomsg">還不太對${how ? "：" + how : ""}。</span>擦掉再寫一次。` + (wrong >= 2 && hint < 2 ? '<div class="tipch">可以按「提示」，看看字的一部分。</div>' : ""); clearAll(); }
   };
   const chk = el("button", { type: "button", class: "btn solid" }, "檢查"); chk.onclick = check;
   const clr = el("button", { type: "button", class: "btn" }, "擦掉"); clr.onclick = () => { clearAll(); res.innerHTML = ""; };
-  const gd = el("button", { type: "button", class: "btn" }, "看範字"); gd.onclick = () => { guide = !guide; gd.textContent = guide ? "關掉範字" : "看範字"; clearAll(); res.innerHTML = guide ? '<span class="hint">描完後要關掉範字，自己寫一次才算完成。</span>' : ""; };
+  const gd = el("button", { type: "button", class: "btn" }, "提示"); gd.onclick = () => { if (done) return; hint = Math.min(2, hint + 1); logHint(q); gd.textContent = hint === 1 ? "再一個提示" : "提示"; gd.disabled = hint >= 2; clearAll(); res.innerHTML = '<span class="hint">照著淡淡的字寫，再按「檢查」。</span>'; };
   box.append(el("div", { class: "phead" }, "① 寫國字"), cv, tools(chk, clr, gd), res); return box;
 }
 const ZY_KEYS = [["ㄅ", "ㄆ", "ㄇ", "ㄈ", "ㄉ", "ㄊ", "ㄋ", "ㄌ"], ["ㄍ", "ㄎ", "ㄏ", "ㄐ", "ㄑ", "ㄒ", "ㄓ", "ㄔ"], ["ㄕ", "ㄖ", "ㄗ", "ㄘ", "ㄙ", "ㄧ", "ㄨ", "ㄩ"], ["ㄚ", "ㄛ", "ㄜ", "ㄝ", "ㄞ", "ㄟ", "ㄠ", "ㄡ"], ["ㄢ", "ㄣ", "ㄤ", "ㄥ", "ㄦ"]];

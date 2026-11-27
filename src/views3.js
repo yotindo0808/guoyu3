@@ -244,10 +244,11 @@ function mustSlides(c) {
 }
 function traceSlide(c, head) {
   const q4 = qid(`描寫：${c.c}`); const r4 = el("div");
-  const p4 = inkPad({ ch: c.c, st: c.st, hints: true, onPick: (ch, h) => { const ok = ch === c.c; logAns(q4, ok, ch + (h ? `（用了${h}個提示）` : "")); if (ok) { p4.lock(); p4.res.innerHTML = '<span class="okmsg">√ 寫對了！</span>'; r4.classList.add("answered"); } else p4.res.innerHTML = `<span class="nomsg">這是「${nz(ch)}」，不是我們要寫的字。</span>擦掉再寫一次，可以按「提示」。`; } });
-  const model = el("div", { class: "model" }, `<span class="mch nozy">${c.c}</span>`);
+  /* 旁邊已經有範字可以看，寫字格就不再給提示；範字用部件分色的彩色生字（課文解鎖後才有，沒有時用一般國字） */
+  const p4 = inkPad({ ch: c.c, st: c.st, hints: false, onPick: (ch, h) => { const ok = ch === c.c; logAns(q4, ok, ch + (h ? `（用了${h}個提示）` : "")); if (ok) { p4.lock(); p4.res.innerHTML = '<span class="okmsg">√ 寫對了！</span>'; r4.classList.add("answered"); } else p4.res.innerHTML = `<span class="nomsg">這是「${nz(ch)}」，不是我們要寫的字。</span>看看左邊的字，擦掉再寫一次。`; } });
+  const model = el("div", { class: "model" + (c.img ? " mcolor" : "") }, c.img ? `<img src="${c.img}" alt="${c.c}（部件分色）">` : `<span class="mch nozy">${c.c}</span>`);
   const w4 = el("div", { class: "wrow" }); w4.append(model, p4); r4.append(w4);
-  const s4 = slide("", head, el("div", { class: "inst" }, "看左邊的字，在格子裡寫一次。需要時按「提示」。"), r4); s4.dataset.nofit = "1";
+  const s4 = slide("", head, el("div", { class: "inst" }, "看左邊的字，在格子裡寫一次。"), r4); s4.dataset.nofit = "1";
   return s4;
 }
 function wordWriteSlide(c, word, wh, label, head) {
@@ -584,7 +585,7 @@ const VIEWS = {
       const g = el("div", { class: "zcgrid" }); const rt = el("div", { class: "zcr" }); rt.append(p); g.append(lf, rt);
       const sl = slide("zcs", g); sl.dataset.nofit = "1"; return sl; });
     const tr = L.cards.map(c => traceSlide(c, el("div", { class: "mhead" }, '<span class="mstep">寫寫看</span>')));
-    return deck([{ group: "生字", name: "寫寫看", hint: "照著左邊的字寫一次，寫完會辨認你寫的字。", slides: tr }, { name: "生字練習", hint: "每個生字要完成三件事：寫國字、拼注音、選部首。", slides: ps }, { name: "自己造詞", slides: zc }, { name: "完成", slides: [finishSlide()] }], { submit: true });
+    return deck([{ group: "生字", name: "寫寫看", hint: "看左邊的彩色生字，在格子裡寫一次。", slides: tr }, { name: "生字練習", hint: "每個生字要完成三件事：寫國字、拼注音、選部首。", slides: ps }, { name: "自己造詞", slides: zc }, { name: "完成", slides: [finishSlide()] }], { submit: true });
   },
 
   words() {
