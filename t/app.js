@@ -1398,7 +1398,9 @@ function ladderSlide(o) {
   const down = el("button", { type: "button", class: "btn lhint" }, "💡 給我提示"); const up = el("button", { type: "button", class: "btn lup" }, "挑戰下一󠇢階 ⬆");
   let cur = null; const made = {};
   const paint = () => { steps.innerHTML = ""; names.forEach((n, k) => steps.append(el("span", { class: "lstep" + (k + 1 === lv ? " on" : "") + (k + 1 < lv ? " below" : "") }, `${k + 1} ${n}`))); down.disabled = lv <= 1; up.hidden = !(cur && cur.isDone() && lv < 4); };
-  const show = () => { area.innerHTML = ""; res.innerHTML = ""; cur = made[lv] || (made[lv] = o.makers[lv - 1]()); area.append(cur); if (cur.onshow) requestAnimationFrame(cur.onshow); paint(); };
+  const show = () => { area.innerHTML = ""; res.innerHTML = ""; cur = made[lv] || (made[lv] = o.makers[lv - 1]()); area.append(cur); if (cur.onshow) requestAnimationFrame(cur.onshow); paint(); refit(); };
+  /* 換階層後內容高度不同：重󠇡新計算字級，放得下就放大 */
+  const refit = () => requestAnimationFrame(() => { if (!s || !s.isConnected) return; const v = fitValue(s); if (v) setFit(s, v); });
   down.onclick = () => { if (lv <= 1) return; if (!used) { used = true; logAns(q, false, `用了提示（從第 ${lv} 階往下）`); } lv--; show(); };
   up.onclick = () => { lv++; show(); };
   area.addEventListener("click", () => setTimeout(check, 50)); area.addEventListener("keyup", () => setTimeout(check, 50));
@@ -1408,7 +1410,7 @@ function ladderSlide(o) {
   /* 有圖時橫式左右兩欄（左圖、右作答），避免上下堆疊把字擠小；每張自己算字級 */
   const s = o.stem ? slide("lad ladsplit", o.kick ? kick(o.kick) : null, splitBox([].concat(o.stem), [head, area, res])) : slide("lad", o.kick ? kick(o.kick) : null, head, area, res);
   s.dataset.fg = "lad" + Math.random();
-  s.onshow = () => { if (!cur) show(); else if (cur.onshow) cur.onshow(); };
+  s.onshow = () => { if (!cur) show(); else { if (cur.onshow) cur.onshow(); refit(); } };
   s.reveal = () => { if (o.ref) res.innerHTML = `<div class="refcard">參考答案：${esc(o.ref)}</div>`; };
   return s;
 }
