@@ -1292,3 +1292,8 @@ html.proj .hwtable { background: #fff; color: #222; }
 /* 情境判斷：句子小一點、要判斷的詞語放大 */
 .jsent { font-size: .82em; }
 .jsent .jkw { font-size: 1.45em; color: var(--accent); font-weight: 700; }
+/* 看圖練習：左圖右作答 */
+.ladsplit .split { grid-template-columns: minmax(0, 30%) minmax(0, 1fr); align-items: start; }
+.ladsplit .ladpic .pic { height: auto; width: 100%; max-height: 46vh; }
+.ladsplit .chip { font-size: 1.05em; padding: .3em .7em; }
+@media (orientation: portrait) { .ladsplit .split { grid-template-columns: 1fr; } .ladsplit .ladpic .pic { max-height: 22vh; width: auto; } }

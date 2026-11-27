@@ -1405,7 +1405,9 @@ function ladderSlide(o) {
   function check() { if (!cur || !cur.isDone()) return; if (lv > doneAt) { doneAt = lv; logText(qid(`${o.label}（完成的階層）`), `第 ${lv} 階：${names[lv - 1]}`); if (!used && !REC[recKey()]?.[q]) logAns(q, true, `第 ${lv} 階完成，沒有用提示`); }
     res.innerHTML = `<span class="okmsg">√ 完成第 ${lv} 階「${names[lv - 1]}」</span>`; paint(); }
   const head = el("div", { class: "lhead" }); head.append(steps, el("span", { class: "lbtns" }, ""), ""); head.querySelector(".lbtns").append(down, up);
-  const s = slide("lad", o.kick ? kick(o.kick) : null, ...[].concat(o.stem || []), head, area, res);
+  /* 有圖時橫式左右兩欄（左圖、右作答），避免上下堆疊把字擠小；每張自己算字級 */
+  const s = o.stem ? slide("lad ladsplit", o.kick ? kick(o.kick) : null, splitBox([].concat(o.stem), [head, area, res])) : slide("lad", o.kick ? kick(o.kick) : null, head, area, res);
+  s.dataset.fg = "lad" + Math.random();
   s.onshow = () => { if (!cur) show(); else if (cur.onshow) cur.onshow(); };
   s.reveal = () => { if (o.ref) res.innerHTML = `<div class="refcard">參考答案：${esc(o.ref)}</div>`; };
   return s;
