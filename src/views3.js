@@ -714,18 +714,24 @@ const VIEWS = {
       const s = L.rvb.map((x, i) => x.pics ? listenSlide(x.say, x.pics, 0, `綜合練習${i + 1}`, { html: y => pic(y[1], y[0]), cls: "lpic", stem: el("div", { class: "stem" }, x.q) }) : listenSlide(x.say, x.opts, 0, `綜合練習${i + 1}`, { cls: "bigc", stem: el("div", { class: "stem" }, mk(x.q)) }));
       return deck([{ name: "聽題點選", hint: "聽題目，按出答案。", slides: s }, { name: "完成", slides: [finishSlide()] }], { submit: true });
     }
-    const out = [];
+    /* 依 sec 分小節（沒有 sec 的題目都放「綜合練習」）；一頁一題 */
+    const secs = []; const bySec = {};
+    const put = (x, sl) => { const n = x.sec || "綜合練習"; if (!bySec[n]) { bySec[n] = []; secs.push({ name: n, slides: bySec[n] }); } bySec[n].push(sl); };
     L.rvs.forEach((x, i) => {
       if (x.type === "write") x.items.forEach((it, k) => { const zyi = it[2]; const show = it.slice(0, 2).map((t, j) => j === zyi ? `<span class="ui zyk">${t}</span>` : nz(t)).join("");
         const p = produce({ only: "write", label: `寫國字：${it.slice(0, 2).join("")}`, answer: it[3], check: t => t === it[3] ? { st: "ok" } : { st: "no", msg: "不是這個字" } });
-        const s = slide("", kick(x.k), el("div", { class: "stem big-line" }, `寫出注音的國字：${show}`), p); s.reveal = p.reveal; out.push(s); });
-      else if (x.type === "fix") { const p = produce({ label: `改錯字：${x.s}`, answer: x.ans, check: t => t === x.ans ? { st: "ok" } : { st: "no", msg: "再找找看" }, hint: `錯的字是「${x.wrong}」` });
-        const s = slide("", kick(x.k), el("div", { class: "stem big-line" }, `句子裡有一個錯字，寫出正確的字：<br>${nz(x.s)}`), p); s.reveal = p.reveal; out.push(s); }
-      else if (x.type === "choice") { const poly = x.k === "多音字"; const c = choiceQ(poly ? x.q.replace(/(濟+)/g, m => nz(m)) : x.q, x.opts.map(o => poly ? `<span class="ui">${o}</span>` : o), x.ans, `${x.k}：${plainText(x.q)}`); const s = slide("", kick(x.k), poly ? null : sayRow(c), c); s.reveal = c.reveal; out.push(s); }
-      else if (x.type === "own") { const w = writeBox(`造句：${x.pat}`); out.push(slide("", kick(x.k), el("div", { class: "stem" }, `用「${x.pat}」造一句。`), w)); }
+        const s = slide("", kick(x.k), el("div", { class: "stem big-line" }, `寫出注音的國字：<span class="fixs">${show}</span>`), p); s.reveal = p.reveal; s.dataset.nofit = "1"; put(x, s); });
+      else if (x.type === "fix") { const p = produce({ only: "write", label: `改錯字：${x.s}`, answer: x.ans, check: t => t === x.ans ? { st: "ok" } : { st: "no", msg: "再找找看" }, hint: `錯的字是「${x.wrong}」` });
+        const s = slide("", kick(x.k), el("div", { class: "stem big-line" }, `找出錯字，寫出正確的字：<span class="fixs">${nz(x.s)}</span>`), p); s.reveal = p.reveal; s.dataset.nofit = "1"; put(x, s); }
+      else if (x.type === "choice") { const poly = x.k === "多音字" || x.ui; let q = x.k === "多音字" ? x.q.replace(/(濟+)/g, m => nz(m)) : x.q; if (x.nz) q = q.split(x.nz).join(nz(x.nz));
+        const c = choiceQ(q, x.opts.map(o => poly ? `<span class="ui">${o}</span>` : o), x.ans, `${x.k}：${plainText(x.q)}`); const s = slide("", kick(x.k), poly ? null : sayRow(c), c); s.reveal = c.reveal; put(x, s); }
+      else if (x.type === "ord") { const o = ordBox(x.cards, `句型排列：${x.cards.join("")}`); put(x, slide("", kick(x.k), o)); }
+      else if (x.type === "fillb") { const f = fillBox(x.fill, x.bank, `句型填空：${x.fill.replace(/[{}]/g, "")}`); const s = slide("", kick(x.k), f); s.reveal = f.reveal; s.onshow = () => f.onshow && f.onshow(); put(x, s); }
+      else if (x.type === "own") { const w = writeBox(`造句：${x.pat}`); put(x, slide("", kick(x.k), el("div", { class: "stem" }, `用「${x.pat}」造一句。`), w)); }
     });
-    if (T === "proj") return deck([{ name: "綜合練習", slides: out }]);
-    return deck([{ name: "綜合練習", hint: "整課重點複習。", slides: out }, { name: "完成", slides: [finishSlide()] }], { submit: true });
+    if (T === "proj") return deck(secs);
+    if (secs.length) secs[0].hint = "整課重點複習，一次做一小節就好。";
+    return deck([...secs, { name: "完成", slides: [finishSlide()] }], { submit: true });
   },
 };
 
