@@ -580,12 +580,12 @@ const VIEWS = {
       const g = el("div", { class: "zcgrid" }); const rt = el("div", { class: "zcr" }); rt.append(p); g.append(lf, rt);
       const sl = slide("zcs", g); sl.dataset.nofit = "1"; return sl; });
     const tr = L.cards.map(c => traceSlide(c, el("div", { class: "mhead" }, '<span class="mstep">寫寫看</span>')));
-    return deck([{ group: "生字", name: "寫寫看", hint: "照著左邊的字寫一次，寫完會辨認你寫的字。", slides: tr, dotChars: L.cards.map(c => c.c) }, { name: "生字練習", hint: "每個生字要完成三件事：寫國字、拼注音、選部首。", slides: ps, dotChars: L.cards.map(c => c.c) }, { name: "自己造詞", slides: zc, dotChars: L.cards.map(c => c.c) }, { name: "完成", slides: [finishSlide()] }], { submit: true });
+    return deck([{ group: "生字", name: "寫寫看", hint: "照著左邊的字寫一次，寫完會辨認你寫的字。", slides: tr }, { name: "生字練習", hint: "每個生字要完成三件事：寫國字、拼注音、選部首。", slides: ps }, { name: "自己造詞", slides: zc }, { name: "完成", slides: [finishSlide()] }], { submit: true });
   },
 
   words() {
     const T = tier(); const WD = L.words; const lk = {}; WD.forEach(w => lk[w.w] = w);
-    const judgeS = L.judge.map((x, i) => ynSlide(x.s.replace(x.w, `<b class="kw">${x.w}</b>`), x.ok, `情境判斷${i + 1}：${x.w}`));
+    const judgeS = L.judge.map((x, i) => ynSlide(`<span class="jsent">${x.s.replace(x.w, `<b class="kw jkw">${x.w}</b>`)}</span>`, x.ok, `情境判斷${i + 1}：${x.w}`));
     const multiS = L.multi.items.map((x, i) => { const stem = el("div", { class: "stem big-line" }, x.s.replace(L.multi.w, `<b class="kw">${L.multi.w}</b>`)); const r = pickRow(L.multi.senses.map((t, k) => `${"①②"[k]} ${t}`), x.ans, `「${L.multi.w}」的意思${i + 1}`, "ab wide"); const s = slide("", sayRow(stem), stem, el("div", { class: "ynrow col" }, "")); s.querySelector(".ynrow").append(r); s.reveal = r.reveal; return s; });
     const fillS = bankSlides(L.fillw.items, L.fillw.bank, "選詞填入");
     if (T === "proj") {

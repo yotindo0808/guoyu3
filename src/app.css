@@ -1288,3 +1288,7 @@ mark.hwmk { background: #ffe08a; color: inherit; border-radius: 0; padding: .06e
 .hwall { font-size: .7em; }
 html.proj .hwtable { background: #fff; color: #222; }
 .hwlk { margin: .2em 0; font-size: .95em; }
+
+/* 情境判斷：句子小一點、要判斷的詞語放大 */
+.jsent { font-size: .82em; }
+.jsent .jkw { font-size: 1.45em; color: var(--accent); font-weight: 700; }

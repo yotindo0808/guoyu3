@@ -1289,6 +1289,10 @@ mark.hwmk { background: #ffe08a; color: inherit; border-radius: 0; padding: .06e
 html.proj .hwtable { background: #fff; color: #222; }
 .hwlk { margin: .2em 0; font-size: .95em; }
 
+/* 情境判斷：句子小一點、要判斷的詞語放大 */
+.jsent { font-size: .82em; }
+.jsent .jkw { font-size: 1.45em; color: var(--accent); font-weight: 700; }
+
 
 .lockp{display:block;padding:14px 18px;border:2px dashed #c9b28a;border-radius:12px;background:#fffaf0;color:#6b5a3a;line-height:1.8}
 .lockp .unlockbtn{margin-left:.6em;font-size:.85em}
